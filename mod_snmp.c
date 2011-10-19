@@ -1285,6 +1285,7 @@ static int snmp_agent_handle_packet(int sockfd) {
     return -1;
   }
 
+  /* Check ACLs (community, SNMPv3, etc) */
   res = snmp_security_check(pkt);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
@@ -1295,8 +1296,6 @@ static int snmp_agent_handle_packet(int sockfd) {
     errno = EINVAL;
     return -1;
   }
-
-  /* XXX Check ACLs (community, SNMPv3, etc) */
 
   (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
     "read SNMP message for %s, community = '%s', request ID %ld, "
@@ -1363,9 +1362,6 @@ static int snmp_agent_handle_packet(int sockfd) {
         pr_netaddr_get_ipstr(pkt->remote_addr),
         ntohs(pr_netaddr_get_port(pkt->remote_addr)));
 
-#if 0
-      from_sockaddrlen = sizeof(struct sockaddr_in);
-#endif
       res = sendto(sockfd, pkt->resp_data, pkt->resp_datalen, 0,
         (struct sockaddr *) &from_sockaddr, from_sockaddrlen);
       if (res < 0) {
