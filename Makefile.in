@@ -49,4 +49,4 @@ clean:
 
 dist: clean
 	$(RM) Makefile $(MODULE_NAME).h config.status config.cache config.log
-	-$(RM) -r .libs/ CVS/ RCS/
+	-$(RM) -r .libs/ .git/ CVS/ RCS/
