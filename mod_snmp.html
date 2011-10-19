@@ -1,0 +1,265 @@
+<!-- $Id: mod_snmp.html,v 1.3 2011/10/19 17:16:52 tj Exp tj $ -->
+<!-- $Source: /home/tj/proftpd/modules/doc/RCS/mod_snmp.html,v $ -->
+
+<html>
+<head>
+<title>ProFTPD module mod_snmp</title>
+</head>
+
+<body bgcolor=white>
+
+<hr>
+<center>
+<h2><b>ProFTPD module <code>mod_snmp</code></b></h2>
+</center>
+<hr><br>
+
+<p>
+The <code>mod_snmp</code> module implements SNMPv1 and SNMPv2, for monitoring
+of <code>proftpd</code> statistics via SNMP.
+
+<p>
+The <code>mod_snmp</code> module does <b>not</b> currently support:
+<ul>
+  <li>Traps/Notifications
+  <li>SNMPv3
+  <li>AgentX
+  <li>SNMP <code>Set</code> requests
+</ul>
+
+<p>
+The <code>mod_snmp</code> module is contained in the <code>mod_snmp/</code>
+directory, is intended for ProFTPD 1.3.4rc3 and later, and is not compiled by
+default.  Installation instructions are discussed
+<a href="#Installation">here</a>.
+
+<p>
+The most current version of <code>mod_snmp</code> can be found at:
+<pre>
+  <a href="http://www.castaglia.org/proftpd/">http://www.castaglia.org/proftpd/</a>
+</pre>
+
+<h2>Author</h2>
+<p>
+Please contact TJ Saunders &lt;tj <i>at</i> castaglia.org&gt; with any
+questions, concerns, or suggestions regarding this module.
+
+<h2>Directives</h2>
+<ul>
+  <li><a href="#SNMPAgent">SNMPAgent</a>
+  <li><a href="#SNMPCommunity">SNMPCommunity</a>
+  <li><a href="#SNMPEngine">SNMPEngine</a>
+  <li><a href="#SNMPLog">SNMPLog</a>
+  <li><a href="#SNMPMaxVariables">SNMPMaxVariables</a>
+  <li><a href="#SNMPTables">SNMPTables</a>
+</ul>
+
+<p>
+<hr>
+<h2><a name="SNMPAgent">SNMPAgent</a></h2>
+<strong>Syntax:</strong> SNMPAgent master|agentx <em>ip-address</em> <em>port</em><br>
+<strong>Default:</strong> <em>None</em><br>
+<strong>Context:</strong> &quot;server config&quot;<br>
+<strong>Module:</strong> mod_snmp<br>
+<strong>Compatibility:</strong> 1.3.4rc3 and later
+
+<p>
+The <code>SNMPAgent</code> directive configures the <code>mod_snmp</code>
+module to act as a "master" SNMP agent/entity, or as an AgentX sub-agent.
+(<b>Note</b> that the AgentX capability is not currently implemented.)
+
+<p>
+The <em>ip-address</em> and <em>port</em> parameters configure the address/port
+on which <code>mod_snmp</code> will listen for UDP SNMP packets.
+
+<p>
+Note that the <code>SNMPAgent</code> diretive is <b>required</b>.
+
+<p>
+<hr>
+<h2><a name="SNMPCommunity">SNMPCommunity</a></h2>
+<strong>Syntax:</strong> SNMPCommunity <em>community</em><br>
+<strong>Default:</strong> <em>None</em><br>
+<strong>Context:</strong> &quot;server config&quot;<br>
+<strong>Module:</strong> mod_snmp<br>
+<strong>Compatibility:</strong> 1.3.4rc3 and later
+
+<p>
+The <code>SNMPCommunity</code> directive configures the <em>community</em>
+string (effectively a passphrase) used for authenticating SNMPv1 and SNMPv2
+messages.
+
+<p>
+Note that the <code>SNMPCommunity</code> diretive is <b>required</b>.
+
+<p>
+<hr>
+<h2><a name="SNMPEngine">SNMPEngine</a></h2>
+<strong>Syntax:</strong> SNMPEngine <em>on|off</em><br>
+<strong>Default:</strong> <em>off</em><br>
+<strong>Context:</strong> &quot;server config&quot;<br>
+<strong>Module:</strong> mod_snmp<br>
+<strong>Compatibility:</strong> 1.3.4rc3 and later
+
+<p>
+The <code>SNMPEngine</code> directive controls whether the <code>mod_snmp</code>
+will run as an SNMP agent, and handle SNMP messages.
+
+<p>
+<hr>
+<h2><a name="SNMPLog">SNMPLog</a></h2>
+<strong>Syntax:</strong> SNMPLog <em>file|"none"</em><br>
+<strong>Default:</strong> <em>None</em><br>
+<strong>Context:</strong> &quot;server config&quot;<br>
+<strong>Module:</strong> mod_snmp<br>
+<strong>Compatibility:</strong> 1.3.4rc3 and later
+
+<p>
+The <code>SNMPLog</code> directive is used to specify a log file for
+<code>mod_sNMp</code>'s reporting.  The <em>file</em> parameter given must be
+the full path to the file to use for logging.
+
+<p>
+Note that this path must <b>not</b> be to a world-writable directory and,
+unless <code>AllowLogSymlinks</code> is explicitly set to <em>on</em>
+(generally a bad idea), the path must <b>not</b> be a symbolic link.
+
+<p>
+<hr>
+<h2><a name="SNMPTables">SNMPTables</a></h2>
+<strong>Syntax:</strong> SNMPTables <em>path</em><br>
+<strong>Default:</strong> <em>None</em><br>
+<strong>Context:</strong> &quot;server config&quot;<br>
+<strong>Module:</strong> mod_snmp<br>
+<strong>Compatibility:</strong> 1.3.4rc3 and later
+
+<p>
+The <code>SNMPTables</code> directive is used to specify a directory that
+<code>mod_snmp</code> will use for storing its database files; these files
+are used for tracking the various statistics reported via SNMP.
+
+<p>
+<hr>
+<h2><a name="Installation">Installation</a></h2>
+To install <code>mod_snmp</code>, go to the third-party module area in
+the proftpd source code and unpack the <code>mod_snmp</code> source tarball:
+<pre>
+  cd <i>proftpd-dir</i>/contrib/
+  tar zxvf /path/to/mod_snmp-<i>version</i>.tar.gz
+</pre>
+after unpacking the latest proftpd-1.3.4 source code.  For including
+<code>mod_snmp</code> as a staticly linked module:
+<pre>
+  ./configure --with-modules=mod_snmp ...
+</pre>
+Alternatively, <code>mod_snmp</code> can be built as a DSO module:
+<pre>
+  ./configure --enable-dso --with-shared=mod_snmp ...
+</pre>
+Then follow the usual steps:
+<pre>
+  make
+  make install
+</pre>
+
+<p>
+<hr>
+<h2><a name="Usage">Usage</a></h2>
+<p>
+
+<p>
+<b>Example Configuration</b><br>
+The <code>mod_snmp</code> module uses a UDP socket for listening for SNMP
+requests.  Thus it does not require any separate
+<code>&lt;VirtualHost&gt;</code> sections, and does not interfere with the
+normal FTP operations.
+
+<p>
+Here is an example configuration for <code>mod_snmp</code>:
+<pre>
+  &lt;IfModule mod_snmp.c&gt;
+    SNMPEngine on
+    SNMPLog /etc/proftpd/snmp/snmp.log
+
+    # Configure the agent to listen on 1.2.3.4, port 161
+    SNMPAgent master 1.2.3.4 161
+
+    # Configure the SNMP community string
+    SNMPCommunity MySnmpCommunity
+
+    # Configure the directory that mod_snmp will use for its database files
+    SNMPTables /var/proftpd/snmp
+  &lt;/IfModule&gt;
+</pre>
+
+<p>
+<b>Access Controls for SNMP Messages</b><br>
+Since the SNMPv1/SNMPv2 does not have authentication of "users" as such,
+the normal user/group-based ACLs that can be configured in <code>proftpd</code>
+have no effect on SNMP messages.
+
+<p>
+In order to provide IP-based access control, then, the <code>mod_snmp</code>
+module supports a <code>&lt;Limit SNMP&gt;</code> section, like the following:
+<p>
+Example:
+<pre>
+  &lt;Limit SNMP&gt;
+    # Allow SNMP packets from 10.x.x.x and 127.0.0.1 addresses
+    Allow from 10., 127.0.0.1
+    DenyAll
+  &lt;/Limit&gt;
+</pre>
+It is easy to spoof the source address for UDP packets, however.  So it is
+far better (and more secure) to use a firewall to restrict which UDP packets
+can reach the <code>mod_snmp</code> address/port.
+
+<p>
+<b>Logging</b><br>
+The <code>mod_snmp</code> module supports different forms of logging.  The
+main module logging is done via the <code>SNMPLog</code> directive.  For
+debugging purposes, the module also uses <a href="http://www.proftpd.org/docs/howto/Tracing.html">trace logging</a>, via the module-specific "snmp" and
+"snmp-db" log channels.  Thus for trace logging, to aid in debugging, you
+would use the following in your <code>proftpd.conf</code>:
+<pre>
+  TraceLog /path/to/snmp-trace.log
+  Trace snmp:20
+</pre>
+This trace logging can generate large files; it is intended for debugging
+use only, and should be removed from any production configuration.
+
+<p>
+<b>SNMP MIB</b><br>
+The MIB provided for <code>proftpd</code> is distributed with the
+<code>mod_snmp</code> module source code, and will be installed by default.
+It is contained in the &quot;PROFTPD-MIB.txt&quot; file, and uses SMIv2.
+
+<p>
+<b>Suggested Future Features</b><br>
+The following lists the features I hope to add to <code>mod_snmp</code>,
+according to need, demand, inclination, and time:
+<ul>
+  <li>Traps/Notifications
+  <li>AgentX support
+  <li>SNMPv3 support
+  <li>Controls support (<i>e.g.</i> for "ftpdctl snmp" action)
+</ul>
+
+<p>
+<hr><br>
+
+Author: <i>$Author: tj $</i><br>
+Last Updated: <i>$Date: 2011/10/19 17:16:52 $</i><br>
+
+<br><hr>
+
+<font size=2><b><i>
+&copy; Copyright 2011 TJ Saunders<br>
+ All Rights Reserved<br>
+</i></b></font>
+
+<hr><br>
+
+</body>
+</html>
+
