@@ -1,4 +1,0 @@
-The mod_snmp module for ProFTPD implements SNMP agent capabilities in the
-proftpd daemon.  The PROFTPD-MIB.txt file contains the MIB used by proftpd.
-
-For further module documentation, see mod_snmp.html.
