@@ -1,0 +1,2615 @@
+/*
+ * ProFTPD - mod_snmp
+ * Copyright (c) 2008-2011 TJ Saunders
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335, USA.
+ *
+ * As a special exemption, TJ Saunders and other respective copyright holders
+ * give permission to link this program with OpenSSL, and distribute the
+ * resulting executable, without including the source code for OpenSSL in the
+ * source distribution.
+ *
+ * DO NOT EDIT BELOW THIS LINE
+ * $Archive: mod_snmp.a $
+ * $Id: mod_sftp.c,v 1.60 2011/08/02 18:24:56 castaglia Exp $
+ */
+
+#include "mod_snmp.h"
+#include "asn1.h"
+#include "db.h"
+#include "mib.h"
+#include "packet.h"
+#include "pdu.h"
+#include "msg.h"
+
+/* Agent type/role */
+#define SNMP_AGENT_TYPE_MASTER		1
+#define SNMP_AGENT_TYPE_AGENTX		2
+
+extern xaset_t *server_list;
+
+module snmp_module;
+
+int snmp_logfd = -1;
+pool *snmp_pool = NULL;
+conn_t *snmp_conn = NULL;
+struct timeval snmp_start_tv;
+
+static pid_t snmp_agent_pid = 0;
+static int snmp_enabled = TRUE;
+static int snmp_engine = FALSE;
+static const char *snmp_logname = NULL;
+
+static const char *snmp_community = NULL;
+
+/* This number defined as the maximum 'max-bindings' value in RFC19105; it's
+ * good enough for the default maximum number of variables in a bindings list
+ * to process.
+ */
+static unsigned int snmp_max_variables = SNMP_PDU_MAX_BINDINGS;
+
+/* Number of seconds to wait for the SNMP agent process to stop before
+ * we terminate it with extreme prejudice.
+ *
+ * Currently this has a granularity of seconds; needs to be in millsecs
+ * (e.g. for 500 ms timeout).
+ */
+static time_t snmp_agent_timeout = 1;
+
+static off_t snmp_retr_bytes = 0, snmp_stor_bytes = 0;
+
+static int udp_proto = IPPROTO_UDP;
+
+static const char *trace_channel = "snmp";
+
+static int snmp_check_class_access(xaset_t *set, const char *name,
+    struct snmp_packet *pkt) {
+  config_rec *c;
+  int ok = FALSE;
+
+  /* If no class was found for this session, short-circuit the check.
+   * Note: this is an optimization that can/should be applied to the
+   * core engine as well, e.g. in the proftpd-1.3.5 devel cycle.
+   */
+  if (pkt->remote_class == NULL) {
+    return ok;
+  }
+
+  /* XXX Note: the pr_expr_eval_class_* functions assume the use of the
+   * global session variable.  They should be refactored to take the
+   * class as an argument.
+   */
+
+  session.class = pkt->remote_class;
+
+  c = find_config(set, CONF_PARAM, name, FALSE);
+  while (c) {
+    pr_signals_handle();
+
+#ifdef PR_USE_REGEX
+    if (*((unsigned char *) c->argv[0]) == PR_EXPR_EVAL_REGEX) {
+      pr_regex_t *pre = (pr_regex_t *) c->argv[1];
+
+      if (pkt->remote_class != NULL &&
+          pr_regexp_exec(pre, pkt->remote_class->cls_name, 0, NULL,
+            0, 0, 0) == 0) {
+        ok = TRUE;
+        break;
+      }
+
+    } else
+#endif /* regex support */
+
+    if (*((unsigned char *) c->argv[0]) == PR_EXPR_EVAL_OR) {
+      ok = pr_expr_eval_class_or((char **) &c->argv[1]);
+      if (ok == TRUE)
+        break;
+
+    } else if (*((unsigned char *) c->argv[0]) == PR_EXPR_EVAL_AND) {
+      ok = pr_expr_eval_class_and((char **) &c->argv[1]);
+      if (ok == TRUE)
+        break;
+    }
+
+    c = find_config_next(c, c->next, CONF_PARAM, name, FALSE);
+  }
+
+  session.class = NULL;
+  return ok;
+}
+
+static int snmp_check_ip_positive(const config_rec *c,
+    struct snmp_packet *pkt) {
+  int aclc;
+  pr_netacl_t **aclv;
+
+  for (aclc = c->argc, aclv = (pr_netacl_t **) c->argv; aclc; aclc--, aclv++) {
+    if (pr_netacl_get_negated(*aclv) == TRUE) {
+      continue;
+    }
+
+    switch (pr_netacl_match(*aclv, pkt->remote_addr)) {
+      case 1:
+        /* Found it! */
+        return TRUE;
+
+      case -1:
+        /* Special value "NONE", meaning nothing can match, so we can
+         * short-circuit on this as well.
+         */
+        return FALSE;
+
+      default:
+        /* No match, keep trying */
+        break;
+    }
+  }
+
+  return FALSE;
+}
+
+static int snmp_check_ip_negative(const config_rec *c,
+    struct snmp_packet *pkt) {
+  int aclc;
+  pr_netacl_t **aclv;
+
+  for (aclc = c->argc, aclv = (pr_netacl_t **) c->argv; aclc; aclc--, aclv++) {
+    if (pr_netacl_get_negated(*aclv) == FALSE) {
+      continue;
+    }
+
+    switch (pr_netacl_match(*aclv, pkt->remote_addr)) {
+      case 1:
+        /* This actually means we DID NOT match, and it's ok to short circuit
+         * everything (negative).
+         */
+        return FALSE;
+
+      case -1:
+        /* -1 signifies a NONE match, which isn't valid for negative
+         * conditions.
+         */
+        pr_log_pri(PR_LOG_ERR, MOD_SNMP_VERSION
+          ": ooops, it looks like !NONE was used in an ACL somehow");
+        return FALSE;
+
+      default:
+        /* This means our match is actually true and we can continue */
+        break;
+    }
+  }
+
+  /* If we got this far either all conditions were TRUE or there were no
+   * conditions.
+   */
+
+  return TRUE;
+}
+
+static int snmp_check_ip_access(xaset_t *set, const char *name,
+    struct snmp_packet *pkt) {
+  config_rec *c;
+  int ok = FALSE;
+
+  c = find_config(set, CONF_PARAM, name, FALSE);
+  while (c) {
+    pr_signals_handle();
+
+    if (snmp_check_ip_negative(c, pkt) != TRUE) {
+      ok = FALSE;
+      break;
+    }
+
+    if (snmp_check_ip_positive(c, pkt) == TRUE) {
+      ok = TRUE;
+      break;
+    }
+
+    c = find_config_next(c, c->next, CONF_PARAM, name, FALSE);
+  }
+
+  return ok;
+}
+
+static int snmp_check_allow_limit(config_rec *c, struct snmp_packet *pkt) {
+  unsigned char *allow_all = NULL;
+
+  if (pkt->remote_class != NULL) {
+    if (snmp_check_class_access(c->subset, "AllowClass", pkt)) {
+      return 1;
+    }
+  }
+
+  if (snmp_check_ip_access(c->subset, "Allow", pkt)) {
+    return 1;
+  }
+
+  allow_all = get_param_ptr(c->subset, "AllowAll", FALSE);
+  if (allow_all != NULL &&
+      *allow_all == TRUE) {
+    return 1;
+  }
+
+  return 0;
+}
+
+static int snmp_check_deny_limit(config_rec *c, struct snmp_packet *pkt) {
+  unsigned char *deny_all;
+
+  deny_all = get_param_ptr(c->subset, "DenyAll", FALSE);
+  if (deny_all != NULL &&
+      *deny_all == TRUE) {
+    return 1;
+  }
+
+  if (pkt->remote_class != NULL) {
+    if (snmp_check_class_access(c->subset, "DenyClass", pkt)) {
+      return 1;
+    }
+  }
+
+  if (snmp_check_ip_access(c->subset, "Deny", pkt)) {
+    return 1;
+  }
+
+  return 0;
+}
+
+static int snmp_check_limit(config_rec *c, struct snmp_packet *pkt) {
+  int *ptr = get_param_ptr(c->subset, "Order", FALSE);
+  int order = ptr ? *ptr : ORDER_ALLOWDENY;
+
+  if (order == ORDER_DENYALLOW) {
+    /* Check deny first */
+
+    if (snmp_check_deny_limit(c, pkt)) {
+      /* Explicit deny */
+      errno = EPERM;
+      return -2;
+    }
+
+    if (snmp_check_allow_limit(c, pkt)) {
+      /* Explicit allow */
+      return 1;
+    }
+
+    /* Implicit deny */
+    errno = EPERM;
+    return -1;
+  }
+
+  /* Check allow first */
+  if (snmp_check_allow_limit(c, pkt)) {
+    /* Explicit allow */
+    return 1;
+  }
+
+  if (snmp_check_deny_limit(c, pkt)) {
+    /* Explicit deny */
+    errno = EPERM;
+    return -2;
+  }
+
+  /* Implicit allow */
+  return 0;
+}
+
+/* Similar to the login_check_limits() function from src/dirtree.c, except
+ * that we assume some of the argument values (and thus don't need them
+ * from callers), we don't handle the per-user/group ACLs, and we look
+ * for <Limit SNMP> sections.
+ */
+static int snmp_limits_allow(xaset_t *set, struct snmp_packet *pkt) {
+  config_rec *c = NULL;
+  int ok = FALSE;
+  int found = 0;
+
+  if (set == NULL ||
+      set->xas_list == NULL) {
+    /* Allow by default */
+    return TRUE;
+  }
+
+  for (c = (config_rec *) set->xas_list; c; c = c->next) {
+    int argc = -1;
+    char **argv = NULL;
+
+    if (c->config_type != CONF_LIMIT) {
+      continue;
+    }
+
+    argc = c->argc;
+    argv = (char **) c->argv;     
+
+    for (; argc; argc--, argv++) {
+      if (strncasecmp(*argv, "SNMP", 5) == 0) {
+        break;
+      }
+    }
+
+    if (argc > 0) {
+      switch (snmp_check_limit(c, pkt)) {
+        case 1:
+          ok = TRUE;
+
+        case -1:
+        case -2:
+          found++;
+          break;
+      }
+    }
+  }
+
+  if (found == 0) {
+    /* Allow by default. */
+    ok = TRUE;
+  }
+
+  return ok;
+}
+
+static int snmp_security_check(struct snmp_packet *pkt) {
+  int res = 0;
+
+  switch (pkt->snmp_version) {
+    case SNMP_PROTOCOL_VERSION_1:
+    case SNMP_PROTOCOL_VERSION_2:
+      /* Check the community string against the configured SNMPCommunity. */
+      if (strncmp(snmp_community, pkt->community, pkt->community_len) != 0) {
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "%s message community '%s' does not match configured community, "
+          "ignoring message", snmp_msg_get_versionstr(pkt->snmp_version),
+          pkt->community);
+
+        /* XXX Send authenticationFailure trap to SNMPTraps address */
+
+        res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_AUTH_ERR_TOTAL, 1);
+        if (res < 0) {
+          (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+            "error incrementing snmp.packetsAuthFailedTotal: %s",
+            strerror(errno));
+        }
+
+        errno = EACCES;
+        return -1;
+      }
+      break;
+
+    case SNMP_PROTOCOL_VERSION_3:
+      /* XXX Not supported yet */
+      errno = ENOSYS;
+      return -1;
+  }
+
+  return res;
+}
+
+static int snmp_mkdir(const char *dir, uid_t uid, gid_t gid, mode_t mode) {
+  mode_t prev_mask;
+  struct stat st;
+  int res = -1;
+
+  pr_fs_clear_cache();
+  res = pr_fsio_stat(dir, &st);
+
+  if (res == -1 &&
+      errno != ENOENT) {
+    return -1;
+  }
+
+  /* The directory already exists. */
+  if (res == 0) {
+    return 0;
+  }
+
+  /* The given mode is absolute, not subject to any Umask setting. */
+  prev_mask = umask(0);
+
+  if (pr_fsio_mkdir(dir, mode) < 0) {
+    int xerrno = errno;
+
+    (void) umask(prev_mask);
+    errno = xerrno;
+    return -1;
+  }
+
+  umask(prev_mask);
+
+  if (pr_fsio_chown(dir, uid, gid) < 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static int snmp_mkpath(pool *p, const char *path, uid_t uid, gid_t gid,
+    mode_t mode) {
+  char *currpath = NULL, *tmppath = NULL;
+  struct stat st;
+
+  pr_fs_clear_cache();
+  if (pr_fsio_stat(path, &st) == 0) {
+    /* Path already exists, nothing to be done. */
+    errno = EEXIST;
+    return -1;
+  }
+
+  tmppath = pstrdup(p, path);
+
+  currpath = "/";
+  while (tmppath && *tmppath) {
+    char *currdir = strsep(&tmppath, "/");
+    currpath = pdircat(p, currpath, currdir, NULL);
+
+    if (snmp_mkdir(currpath, uid, gid, mode) < 0) {
+      return -1;
+    }
+
+    pr_signals_handle();
+  }
+
+  return 0;
+}
+
+/* We don't want to do the full daemonize() as provided in main.c; we
+ * already forked.
+ */
+static void snmp_daemonize(const char *daemon_dir) {
+#ifndef HAVE_SETSID
+  int tty_fd;
+#endif
+
+#ifdef HAVE_SETSID
+  /* setsid() is the preferred way to disassociate from the
+   * controlling terminal
+   */
+  setsid();
+#else
+  /* Open /dev/tty to access our controlling tty (if any) */
+  tty_fd = open("/dev/tty", O_RDWR);
+  if (tty_fd != -1) {
+    if (ioctl(tty_fd, TIOCNOTTY, NULL) == -1) {
+      perror("ioctl");
+      exit(1);
+    }
+
+    close(tty_fd);
+  }
+#endif /* HAVE_SETSID */
+
+  /* Close the three big boys. */
+  close(fileno(stdin));
+  close(fileno(stdout));
+  close(fileno(stderr));
+
+  /* Portable way to prevent re-acquiring a tty in the future */
+
+#ifdef HAVE_SETPGID
+  setpgid(0, getpid());
+
+#else
+# ifdef SETPGRP_VOID
+  setpgrp();
+
+# else
+  setpgrp(0, getpid());
+# endif /* SETPGRP_VOID */
+#endif /* HAVE_SETPGID */
+
+  pr_fsio_chdir(daemon_dir, 0);
+}
+
+static unsigned int snmp_agent_add_resp_var(struct snmp_var **head,
+    struct snmp_var **tail, struct snmp_var *var) {
+  unsigned int count = 0;
+  struct snmp_var *iter_var;
+
+  if (*head == NULL) {
+    *head = var;
+  }
+
+  if (*tail != NULL) {
+    (*tail)->next = var;
+  }
+
+  (*tail) = var;
+
+  for (iter_var = *head; iter_var; iter_var = iter_var->next) {
+    count++;
+  }
+
+  return count;
+}
+
+static int snmp_agent_handle_get(struct snmp_packet *pkt) {
+  struct snmp_var *iter_var = NULL, *head_var = NULL, *tail_var = NULL;
+  unsigned int var_count = 0;
+  int res;
+
+  if (pkt->req_pdu->varlist == NULL) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "missing request PDU variable bindings list, rejecting invalid request");
+    errno = EINVAL;
+    return -1;
+  }
+
+  pkt->resp_pdu = snmp_pdu_dup(pkt->pool, pkt->req_pdu);
+  pkt->resp_pdu->request_type = SNMP_PDU_RESPONSE;
+
+  if (pkt->req_pdu->varlistlen > snmp_max_variables) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "%s %s of too many OIDs (%u, max %u)",
+      snmp_msg_get_versionstr(pkt->snmp_version),
+      snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+      pkt->req_pdu->varlistlen, snmp_max_variables);
+
+    pkt->resp_pdu->err_code = SNMP_ERR_TOO_BIG;
+    pkt->resp_pdu->err_idx = 0;
+
+    return 0;
+  }
+
+  for (iter_var = pkt->req_pdu->varlist; iter_var; iter_var = iter_var->next) { 
+    struct snmp_mib *mib = NULL;
+    struct snmp_var *resp_var = NULL;
+    int32_t mib_int = -1;
+    char *mib_str = NULL;
+    size_t mib_strlen = 0;
+    int lacks_instance_id = FALSE;
+
+    pr_signals_handle();
+
+    mib = snmp_mib_get_by_oid(iter_var->name, iter_var->namelen,
+      &lacks_instance_id);
+    if (mib == NULL) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "%s %s of unknown OID %s", snmp_msg_get_versionstr(pkt->snmp_version),
+        snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+        snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
+          iter_var->namelen));
+
+      /* If SNMPv1, then set the err_code/err_idx values, and duplicate the
+       * varlist.
+       *
+       * If SNMPv2, then leave err_code/err_idex values set to zero, but
+       * create a var of exception 'noSuchObject' or 'noSuchInstance' as
+       * appropriate.
+       */
+
+      switch (pkt->snmp_version) {
+        case SNMP_PROTOCOL_VERSION_1:
+          pkt->resp_pdu->err_code = SNMP_ERR_NO_SUCH_NAME;
+          pkt->resp_pdu->err_idx = var_count + 1;
+          pkt->resp_pdu->varlist = snmp_smi_dup_var(pkt->pool,
+            pkt->req_pdu->varlist);
+          pkt->resp_pdu->varlistlen = pkt->req_pdu->varlistlen;
+          break;
+
+        case SNMP_PROTOCOL_VERSION_2:
+        case SNMP_PROTOCOL_VERSION_3:
+          resp_var = snmp_smi_create_exception(pkt->pool, iter_var->name,
+            iter_var->namelen, lacks_instance_id ? SNMP_SMI_NO_SUCH_INSTANCE :
+              SNMP_SMI_NO_SUCH_OBJECT);
+          break;
+      }
+
+      if (resp_var == NULL) {
+        return 0;
+      }
+    }
+
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "%s %s of OID %s (%s)", snmp_msg_get_versionstr(pkt->snmp_version),
+      snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+      snmp_asn1_get_oidstr(iter_var->pool, iter_var->name, iter_var->namelen),
+      mib ? mib->instance_name : "unknown");
+
+    /* A response variable may be have generated above, e.g. when the MIB
+     * not known/supported.
+     */
+    if (resp_var == NULL) { 
+      res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int, &mib_str,
+        &mib_strlen);
+
+      /* XXX Response with genErr instead? */
+      if (res < 0) {
+        int xerrno = errno;
+
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "error retrieving database value for field %s: %s",
+          snmp_db_get_fieldstr(pkt->pool, mib->db_field), strerror(xerrno));
+        errno = xerrno;
+        return -1;
+      }
+
+      resp_var = snmp_smi_create_var(pkt->pool, mib->mib_oid, mib->mib_oidlen,
+        mib->smi_type, mib_int, mib_str, mib_strlen);
+    }
+
+    var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+  }
+
+  pkt->resp_pdu->varlist = head_var;
+  pkt->resp_pdu->varlistlen = var_count;
+
+  return 0;
+}
+
+static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
+  struct snmp_var *iter_var = NULL, *head_var = NULL, *tail_var = NULL;
+  unsigned int var_count = 0;
+  int max_idx, res;
+
+  if (pkt->req_pdu->varlist == NULL) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "missing request PDU variable bindings list, rejecting invalid request");
+    errno = EINVAL;
+    return -1;
+  }
+
+  pkt->resp_pdu = snmp_pdu_dup(pkt->pool, pkt->req_pdu);
+  pkt->resp_pdu->request_type = SNMP_PDU_RESPONSE;
+
+  if (pkt->req_pdu->varlistlen > snmp_max_variables) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "%s %s of too many OIDs (%u, max %u)",
+      snmp_msg_get_versionstr(pkt->snmp_version),
+      snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+      pkt->req_pdu->varlistlen, snmp_max_variables);
+
+    pkt->resp_pdu->err_code = SNMP_ERR_TOO_BIG;
+    pkt->resp_pdu->err_idx = 0;
+
+    return 0;
+  }
+
+  max_idx = snmp_mib_get_max_idx();
+
+  for (iter_var = pkt->req_pdu->varlist; iter_var; iter_var = iter_var->next) { 
+    struct snmp_mib *mib = NULL;
+    struct snmp_var *resp_var = NULL;
+    int flags = 0, mib_idx = -1, lacks_instance_id = FALSE;
+    int32_t mib_int = -1;
+    char *mib_str = NULL;
+    size_t mib_strlen = 0;
+
+    pr_signals_handle();
+
+    mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
+      &lacks_instance_id, flags);
+    if (mib_idx < 0) {
+      int unknown_oid = FALSE;
+
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "%s %s of unknown OID %s",
+        snmp_msg_get_versionstr(pkt->snmp_version),
+        snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+        snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
+          iter_var->namelen));
+
+      if (lacks_instance_id) {
+        /* For GetNextRequest-PDUs, a request for "A", without instance
+         * identifier, gets the response of "A.0", since "A" comes before
+         * "A.0".  (This does not hold true for GetRequest-PDUs.)
+         *
+         * So tack on the ".0" sub-identifier, and try the lookup again.
+         */
+
+        flags = SNMP_MIB_LOOKUP_FL_NO_INSTANCE_ID;
+        mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
+          &lacks_instance_id, flags);
+        if (mib_idx < 0) {
+          unknown_oid = TRUE;
+
+        } else {
+          mib_idx--;
+        }
+
+      } else {
+        unknown_oid = TRUE;
+      }
+
+      if (unknown_oid) {
+        /* If SNMPv1, then set the err_code/err_idx values, and duplicate the
+         * varlist.
+         *
+         * If SNMPv2/SNMPv3, then leave err_code/err_idex values set to zero,
+         * but create a var of exception 'noSuchObject' or 'noSuchInstance' as
+         * appropriate.
+         */
+
+        switch (pkt->snmp_version) {
+          case SNMP_PROTOCOL_VERSION_1:
+            pkt->resp_pdu->err_code = SNMP_ERR_NO_SUCH_NAME;
+            pkt->resp_pdu->err_idx = var_count + 1;
+            pkt->resp_pdu->varlist = snmp_smi_dup_var(pkt->pool,
+              pkt->req_pdu->varlist);
+            pkt->resp_pdu->varlistlen = pkt->req_pdu->varlistlen;
+            break;
+
+          case SNMP_PROTOCOL_VERSION_2:
+          case SNMP_PROTOCOL_VERSION_3:
+            resp_var = snmp_smi_create_exception(pkt->pool, iter_var->name,
+              iter_var->namelen, lacks_instance_id ? SNMP_SMI_NO_SUCH_INSTANCE :
+                SNMP_SMI_NO_SUCH_OBJECT);
+            break;
+        }
+
+        if (resp_var == NULL) {
+          return 0;
+        }
+      }
+    }
+
+    pr_trace_msg(trace_channel, 19,
+      "%s %s for OID %s at MIB index %d (max index %d)",
+      snmp_msg_get_versionstr(pkt->snmp_version),
+      snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+      snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
+        iter_var->namelen), mib_idx, max_idx);
+
+    if (mib_idx >= max_idx) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "%s %s of last OID %s",
+        snmp_msg_get_versionstr(pkt->snmp_version),
+        snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+        snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
+          iter_var->namelen));
+
+      /* If SNMPv1, then set the err_code/err_idx values, and duplicate the
+       * varlist.
+       *
+       * If SNMPv2/SNMPv3, then leave err_code/err_idex values set to zero, but
+       * create a var of value 'endOfMibView'.
+       */
+
+      switch (pkt->snmp_version) {
+        case SNMP_PROTOCOL_VERSION_1:
+          pkt->resp_pdu->err_code = SNMP_ERR_NO_SUCH_NAME;
+          pkt->resp_pdu->err_idx = var_count + 1;
+          pkt->resp_pdu->varlist = snmp_smi_dup_var(pkt->pool,
+            pkt->req_pdu->varlist);
+          pkt->resp_pdu->varlistlen = pkt->req_pdu->varlistlen;
+          break;
+
+        case SNMP_PROTOCOL_VERSION_2:
+        case SNMP_PROTOCOL_VERSION_3:
+          resp_var = snmp_smi_create_exception(pkt->pool, iter_var->name,
+            iter_var->namelen, SNMP_SMI_END_OF_MIB_VIEW);
+          break;
+      }
+
+      if (resp_var == NULL) {
+        return 0;
+      }
+    }
+
+    if (resp_var == NULL) {
+      /* Get the next MIB in the list. */
+      mib = snmp_mib_get_by_idx(mib_idx + 1);
+
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "%s %s of OID %s (%s)", snmp_msg_get_versionstr(pkt->snmp_version),
+        snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+        snmp_asn1_get_oidstr(iter_var->pool, mib->mib_oid, mib->mib_oidlen),
+        mib->mib_name);
+ 
+      res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int, &mib_str,
+        &mib_strlen);
+
+      /* XXX Response with genErr instead? */
+      if (res < 0) {
+        int xerrno = errno;
+
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "error retrieving database value for field %s: %s",
+          snmp_db_get_fieldstr(pkt->pool, mib->db_field), strerror(xerrno));
+        errno = xerrno;
+        return -1;
+      }
+
+      resp_var = snmp_smi_create_var(pkt->pool, mib->mib_oid, mib->mib_oidlen,
+        mib->smi_type, mib_int, mib_str, mib_strlen);
+    }
+
+    var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+  }
+
+  pkt->resp_pdu->varlist = head_var;
+  pkt->resp_pdu->varlistlen = var_count;
+
+  return 0;
+}
+
+static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
+  register unsigned int i = 0;
+  struct snmp_var *iter_var = NULL, *head_var = NULL, *tail_var = NULL;
+  unsigned int var_count = 0;
+  int max_idx, res;
+
+  /* SNMPv1 does not support GetBulkRequest PDUs. */
+  if (pkt->snmp_version == SNMP_PROTOCOL_VERSION_1) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "GetBulkRequest-PDU not supported for %s packets, rejecting "
+      "invalid request", snmp_msg_get_versionstr(pkt->snmp_version));
+    errno = EINVAL;
+    return -1;
+  }
+
+  if (pkt->req_pdu->varlist == NULL) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "missing request PDU variable bindings list, rejecting invalid request");
+    errno = EINVAL;
+    return -1;
+  }
+
+  /* If non-repeaters is zero, and max-repetitions is zero, treat this as
+   * just another GetNextRequest PDU.
+   */
+  if (pkt->req_pdu->non_repeaters == 0 &&
+      pkt->req_pdu->max_repetitions == 0) {
+    return snmp_agent_handle_getnext(pkt);
+  }
+
+  pkt->resp_pdu = snmp_pdu_dup(pkt->pool, pkt->req_pdu);
+  pkt->resp_pdu->request_type = SNMP_PDU_RESPONSE;
+
+  if (pkt->req_pdu->varlistlen > snmp_max_variables) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "%s %s of too many OIDs (%u, max %u)",
+      snmp_msg_get_versionstr(pkt->snmp_version),
+      snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+      pkt->req_pdu->varlistlen, snmp_max_variables);
+
+    pkt->resp_pdu->err_code = SNMP_ERR_TOO_BIG;
+    pkt->resp_pdu->err_idx = 0;
+
+    return 0;
+  }
+
+  max_idx = snmp_mib_get_max_idx();
+
+  /* First, deal with the non_repeaters count.  This part is just like handling
+   * any other GetNextRequest PDU.
+   */
+  for (i = 0, iter_var = pkt->req_pdu->varlist;
+       i < pkt->req_pdu->non_repeaters && iter_var != NULL;
+       i++, iter_var = iter_var->next) { 
+    struct snmp_mib *mib = NULL;
+    struct snmp_var *resp_var = NULL;
+    int flags = 0, mib_idx = -1, lacks_instance_id = FALSE;
+    int32_t mib_int = -1;
+    char *mib_str = NULL;
+    size_t mib_strlen = 0;
+
+    pr_signals_handle();
+
+    mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
+      &lacks_instance_id, flags);
+    if (mib_idx < 0) {
+      int unknown_oid = FALSE;
+
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "%s %s of unknown OID %s",
+        snmp_msg_get_versionstr(pkt->snmp_version),
+        snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+        snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
+          iter_var->namelen));
+
+      if (lacks_instance_id) {
+        /* For GetNextRequest-PDUs, a request for "A", without instance
+         * identifier, gets the response of "A.0", since "A" comes before
+         * "A.0".  (This does not hold true for GetRequest-PDUs.)
+         *
+         * So tack on the ".0" sub-identifier, and try the lookup again.
+         */
+
+        flags = SNMP_MIB_LOOKUP_FL_NO_INSTANCE_ID;
+        mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
+          &lacks_instance_id, flags);
+        if (mib_idx < 0) {
+          unknown_oid = TRUE;
+
+        } else {
+          mib_idx--;
+        }
+
+      } else {
+        unknown_oid = TRUE;
+      }
+
+      if (unknown_oid) {
+        resp_var = snmp_smi_create_exception(pkt->pool, iter_var->name,
+          iter_var->namelen, lacks_instance_id ? SNMP_SMI_NO_SUCH_INSTANCE :
+            SNMP_SMI_NO_SUCH_OBJECT);
+      }
+    }
+
+    pr_trace_msg(trace_channel, 19,
+      "%s %s for OID %s at MIB index %d (max index %d)",
+      snmp_msg_get_versionstr(pkt->snmp_version),
+      snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+      snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
+        iter_var->namelen), mib_idx, max_idx);
+
+    if (mib_idx >= max_idx) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "%s %s of last OID %s",
+        snmp_msg_get_versionstr(pkt->snmp_version),
+        snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+        snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
+          iter_var->namelen));
+
+      resp_var = snmp_smi_create_exception(pkt->pool, iter_var->name,
+        iter_var->namelen, SNMP_SMI_END_OF_MIB_VIEW);
+    }
+
+    if (resp_var == NULL) {
+      /* Get the next MIB in the list. */
+      mib = snmp_mib_get_by_idx(mib_idx + 1);
+
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "%s %s of OID %s (%s)", snmp_msg_get_versionstr(pkt->snmp_version),
+        snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+        snmp_asn1_get_oidstr(iter_var->pool, mib->mib_oid, mib->mib_oidlen),
+        mib->mib_name);
+ 
+      res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int, &mib_str,
+        &mib_strlen);
+
+      /* XXX Response with genErr instead? */
+      if (res < 0) {
+        int xerrno = errno;
+
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "error retrieving database value for field %s: %s",
+          snmp_db_get_fieldstr(pkt->pool, mib->db_field), strerror(xerrno));
+        errno = xerrno;
+        return -1;
+      }
+
+      resp_var = snmp_smi_create_var(pkt->pool, mib->mib_oid, mib->mib_oidlen,
+        mib->smi_type, mib_int, mib_str, mib_strlen);
+    }
+
+    var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+  }
+
+  /* Now, deal with the max_repetitions count.  Keep in mind the max_variables
+   * limits.
+   *
+   * The iter_var variable should (after the above non_repeaters loop) be
+   * pointing at the starting variable for us to process in the max_repetitions
+   * loop.
+   */
+  for (; iter_var; iter_var = iter_var->next) {
+    register unsigned int j;
+    struct snmp_mib *mib = NULL;
+    struct snmp_var *resp_var = NULL;
+    int flags = 0, mib_idx = -1, lacks_instance_id = FALSE;
+    int32_t mib_int = -1;
+    char *mib_str = NULL;
+    size_t mib_strlen = 0;
+
+    mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
+      &lacks_instance_id, flags);
+    if (mib_idx < 0) {
+      int unknown_oid = FALSE;
+
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "%s %s of unknown OID %s",
+        snmp_msg_get_versionstr(pkt->snmp_version),
+        snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+        snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
+          iter_var->namelen));
+
+      if (lacks_instance_id) {
+        /* For GetNextRequest-PDUs, a request for "A", without instance
+         * identifier, gets the response of "A.0", since "A" comes before
+         * "A.0".  (This does not hold true for GetRequest-PDUs.)
+         *
+         * So tack on the ".0" sub-identifier, and try the lookup again.
+         */
+
+        flags = SNMP_MIB_LOOKUP_FL_NO_INSTANCE_ID;
+        mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
+          &lacks_instance_id, flags);
+        if (mib_idx < 0) {
+          unknown_oid = TRUE;
+
+        } else {
+          mib_idx--;
+        }
+
+      } else {
+        unknown_oid = TRUE;
+      }
+
+      if (unknown_oid) {
+        resp_var = snmp_smi_create_exception(pkt->pool, iter_var->name,
+          iter_var->namelen, lacks_instance_id ? SNMP_SMI_NO_SUCH_INSTANCE :
+            SNMP_SMI_NO_SUCH_OBJECT);
+      }
+    }
+
+    if (resp_var == NULL) {
+      pr_trace_msg(trace_channel, 19,
+        "%s %s for OID %s at MIB index %d (max index %d)",
+        snmp_msg_get_versionstr(pkt->snmp_version),
+        snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+        snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
+          iter_var->namelen), mib_idx, max_idx);
+
+      if (mib_idx >= max_idx) {
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "%s %s of last OID %s",
+          snmp_msg_get_versionstr(pkt->snmp_version),
+          snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+          snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
+            iter_var->namelen));
+
+        resp_var = snmp_smi_create_exception(pkt->pool, iter_var->name,
+          iter_var->namelen, SNMP_SMI_END_OF_MIB_VIEW);
+      }
+
+      if (resp_var == NULL) {
+        struct snmp_mib *prev_mib = NULL;
+
+        for (j = 1; j <= pkt->req_pdu->max_repetitions; j++) {
+          pr_signals_handle();
+
+          /* Get the next MIB in the list. */
+          mib = snmp_mib_get_by_idx(mib_idx + j);
+          if (mib != NULL) {
+            (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+              "%s %s of OID %s (%s)",
+              snmp_msg_get_versionstr(pkt->snmp_version),
+              snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
+              snmp_asn1_get_oidstr(iter_var->pool, mib->mib_oid,
+                mib->mib_oidlen), mib->mib_name);
+
+            res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int,
+              &mib_str, &mib_strlen);
+
+            /* XXX Response with genErr instead? */
+            if (res < 0) {
+              int xerrno = errno;
+
+              (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+                "error retrieving database value for field %s: %s",
+                snmp_db_get_fieldstr(pkt->pool, mib->db_field),
+                strerror(xerrno));
+              errno = xerrno;
+              return -1;
+            }
+
+            resp_var = snmp_smi_create_var(pkt->pool, mib->mib_oid,
+              mib->mib_oidlen, mib->smi_type, mib_int, mib_str, mib_strlen);
+            prev_mib = mib;
+
+          } else {
+            oid_t *end_oid;
+            unsigned int end_oidlen;
+
+            /* We want to use the OID of the last MIB we processed, or the
+             * last OID in the request, whichever is present.
+             */
+            if (prev_mib != NULL) {
+              end_oid = prev_mib->mib_oid;
+              end_oidlen = prev_mib->mib_oidlen;
+
+            } else {
+              end_oid = iter_var->name;
+              end_oidlen = iter_var->namelen;
+            }
+
+            resp_var = snmp_smi_create_exception(pkt->pool, end_oid,
+              end_oidlen, SNMP_SMI_END_OF_MIB_VIEW);
+            var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+            break;
+          }
+
+          var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+        }
+
+      } else {
+        var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+      }
+
+    } else {
+      var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+    }
+  }
+
+  pkt->resp_pdu->varlist = head_var;
+  pkt->resp_pdu->varlistlen = var_count;
+
+  return 0;
+}
+
+static int snmp_agent_handle_set(struct snmp_packet *pkt) {
+
+  /* We currently don't support any SET operations. */
+
+  (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+    "%s %s not supported", snmp_msg_get_versionstr(pkt->snmp_version),
+    snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type));
+
+  /* Set the err_code/err_idx values, and duplicate the varlist.  The only
+   * difference is that SNMPv1 gets NO_SUCH_NAME, and SNMPv2/SNMPv3 get
+   * NO_ACCESS.
+   */
+
+  pkt->resp_pdu = snmp_pdu_dup(pkt->pool, pkt->req_pdu);
+  pkt->resp_pdu->request_type = SNMP_PDU_RESPONSE;
+
+  switch (pkt->snmp_version) {
+    case SNMP_PROTOCOL_VERSION_1:
+      pkt->resp_pdu->err_code = SNMP_ERR_NO_SUCH_NAME;
+      pkt->resp_pdu->err_idx = 1;
+      pkt->resp_pdu->varlist = snmp_smi_dup_var(pkt->pool,
+        pkt->req_pdu->varlist);
+      pkt->resp_pdu->varlistlen = pkt->req_pdu->varlistlen;
+      break;
+
+    case SNMP_PROTOCOL_VERSION_2:
+    case SNMP_PROTOCOL_VERSION_3:
+      pkt->resp_pdu->err_code = SNMP_ERR_NO_ACCESS;
+      pkt->resp_pdu->err_idx = 1;
+      pkt->resp_pdu->varlist = snmp_smi_dup_var(pkt->pool,
+        pkt->req_pdu->varlist);
+      pkt->resp_pdu->varlistlen = pkt->req_pdu->varlistlen;
+      break;
+  }
+
+  return 0;
+}
+
+static int snmp_agent_handle_request(struct snmp_packet *pkt) {
+  int res;
+
+  switch (pkt->req_pdu->request_type) {
+    case SNMP_PDU_GET:
+      res = snmp_agent_handle_get(pkt);
+      break;
+
+    case SNMP_PDU_GETNEXT:
+      res = snmp_agent_handle_getnext(pkt);
+      break;
+
+    case SNMP_PDU_GETBULK:
+      res = snmp_agent_handle_getbulk(pkt);
+      break;
+
+    case SNMP_PDU_SET:
+      res = snmp_agent_handle_set(pkt);
+      break;
+
+    default:
+      errno = EINVAL; 
+      res = -1;
+  }
+
+  return res;
+}
+
+static int snmp_agent_handle_packet(int sockfd) {
+  int nbytes, res;
+  struct sockaddr_in from_sockaddr;
+  socklen_t from_sockaddrlen;
+  pr_netaddr_t from_addr;
+  fd_set writefds;
+  struct timeval tv;
+  struct snmp_packet *pkt = NULL;
+  
+  pkt = snmp_packet_create(snmp_pool);
+
+  from_sockaddrlen = sizeof(struct sockaddr_in);
+  nbytes = recvfrom(sockfd, pkt->req_data, pkt->req_datalen, 0,
+    (struct sockaddr *) &from_sockaddr, &from_sockaddrlen);
+  if (nbytes < 0) {
+    int xerrno = errno;
+
+    pr_trace_msg(trace_channel, 3,
+      "error receiving data from socket %d: %s", sockfd, strerror(xerrno));
+
+    destroy_pool(pkt->pool);
+    errno = xerrno;
+    return -1;
+  }
+
+  pkt->req_datalen = nbytes;
+
+  pr_netaddr_clear(&from_addr);
+  pr_netaddr_set_family(&from_addr, AF_INET);
+  pr_netaddr_set_sockaddr(&from_addr, (struct sockaddr *) &from_sockaddr);
+
+  pkt->remote_addr = &from_addr;
+
+  pr_trace_msg(trace_channel, 3,
+    "read %d UDP bytes from %s#%u", nbytes,
+    pr_netaddr_get_ipstr(pkt->remote_addr),
+    ntohs(pr_netaddr_get_port(pkt->remote_addr))); 
+
+  res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_RECVD_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "snmp.packetsReceivedTotal: %s", strerror(errno));
+  }
+
+  pkt->remote_class = pr_class_match_addr(&from_addr);
+  if (pkt->remote_class != NULL) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "received %d UDP bytes from client in '%s' class", nbytes,
+      pkt->remote_class->cls_name);
+
+  } else {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "received %d UDP bytes from client in unknown class", nbytes);
+  }
+
+  /* XXX Note: mod_ifsession does NOT affect mod_snmp ACLs; use <Limit SNMP> */
+
+  if (snmp_limits_allow(main_server->conf, pkt) == FALSE) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "UDP packet from %s#%u denied by <Limit SNMP> rules",
+      pr_netaddr_get_ipstr(&from_addr), ntohs(pr_netaddr_get_port(&from_addr)));
+
+    destroy_pool(pkt->pool);
+    errno = EACCES;
+    return -1;
+  }
+
+  res = snmp_msg_read(pkt->pool, &(pkt->req_data), &(pkt->req_datalen),
+    &(pkt->community), &(pkt->community_len), &(pkt->snmp_version),
+    &(pkt->req_pdu));
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error reading SNMP message from UDP packet: %s", strerror(errno));
+
+    destroy_pool(pkt->pool);
+    errno = EINVAL;
+    return -1;
+  }
+
+  res = snmp_security_check(pkt);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "%s message does not contain correct authentication info, "
+      "ignoring message", snmp_msg_get_versionstr(pkt->snmp_version));
+
+    destroy_pool(pkt->pool);
+    errno = EINVAL;
+    return -1;
+  }
+
+  /* XXX Check ACLs (community, SNMPv3, etc) */
+
+  (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+    "read SNMP message for %s, community = '%s', request ID %ld, "
+    "request type '%s'", snmp_msg_get_versionstr(pkt->snmp_version),
+    pkt->community, pkt->req_pdu->request_id,
+    snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type));
+
+  res = snmp_agent_handle_request(pkt);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error handling SNMP message: %s", strerror(errno));
+    destroy_pool(pkt->pool);
+    errno = EINVAL;
+    return -1;
+  }
+
+  if (pkt->req_pdu != NULL) {
+    /* We're done with the request PDU here. */
+    destroy_pool(pkt->req_pdu->pool);
+    pkt->req_pdu = NULL;
+  }
+
+  (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+    "writing SNMP message for %s, community = '%s', request ID %ld, "
+    "request type '%s'", snmp_msg_get_versionstr(pkt->snmp_version),
+    pkt->community, pkt->resp_pdu->request_id,
+    snmp_pdu_get_request_type_desc(pkt->resp_pdu->request_type));
+
+  res = snmp_msg_write(pkt->pool, &(pkt->resp_data), &(pkt->resp_datalen),
+    pkt->community, pkt->community_len, pkt->snmp_version, pkt->resp_pdu);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error writing SNMP message to UDP packet: %s", strerror(errno));
+
+    destroy_pool(pkt->pool);
+    errno = EINVAL;
+    return -1;
+  }
+
+  /* XXX Do we really need a timeout, after which we drop this response? */
+  tv.tv_sec = 15;
+  tv.tv_usec = 0;
+
+  FD_ZERO(&writefds);
+  FD_SET(sockfd, &writefds);
+
+  while (TRUE) {
+    res = select(sockfd + 1, NULL, &writefds, NULL, &tv);
+    if (res < 0) {
+      if (errno == EINTR) {
+        pr_signals_handle();
+        continue;
+      }
+    }
+
+    break;
+  }
+
+  if (res > 0) {
+    if (FD_ISSET(sockfd, &writefds)) { 
+      pr_trace_msg(trace_channel, 3,
+        "sending %lu UDP response bytes to %s#%u",
+        (unsigned long) pkt->resp_datalen,
+        pr_netaddr_get_ipstr(pkt->remote_addr),
+        ntohs(pr_netaddr_get_port(pkt->remote_addr)));
+
+#if 0
+      from_sockaddrlen = sizeof(struct sockaddr_in);
+#endif
+      res = sendto(sockfd, pkt->resp_data, pkt->resp_datalen, 0,
+        (struct sockaddr *) &from_sockaddr, from_sockaddrlen);
+      if (res < 0) {
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "error sending %u UDP response bytes to %s#%u: %s",
+          (unsigned int) pkt->resp_datalen,
+          pr_netaddr_get_ipstr(pkt->remote_addr),
+          ntohs(pr_netaddr_get_port(pkt->remote_addr)), strerror(errno));
+
+      } else {
+        pr_trace_msg(trace_channel, 3,
+          "sent %d UDP response bytes to %s#%u", res,
+          pr_netaddr_get_ipstr(pkt->remote_addr),
+          ntohs(pr_netaddr_get_port(pkt->remote_addr)));
+
+        res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_SENT_TOTAL, 1);
+        if (res < 0) {
+          (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+            "error incrementing SNMP database for "
+            "snmp.packetsSentTotal: %s", strerror(errno));
+        }
+      }
+    }
+
+  } else {
+    if (res == 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "dropping response after waiting %u secs for available socket space",
+        (unsigned int) tv.tv_sec);
+
+    } else {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "dropping response due to select(2) failure: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_DROPPED_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing snmp.packetsDroppedTotal: %s", strerror(errno));
+    }
+  }
+
+  destroy_pool(pkt->pool);
+  return 0;
+}
+
+static int snmp_agent_listen(pr_netaddr_t *agent_addr) {
+  int res, sockfd;
+
+  /* XXX Support IPv6? */
+
+  sockfd = socket(AF_INET, SOCK_DGRAM, udp_proto);
+  if (sockfd < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "unable to create UDP socket: %s", strerror(errno));
+    exit(1);
+  }
+
+  res = bind(sockfd, pr_netaddr_get_sockaddr(agent_addr),
+    pr_netaddr_get_sockaddr_len(agent_addr));
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "unable to bind UDP socket to %s#%u: %s",
+      pr_netaddr_get_ipstr(agent_addr),
+      ntohs(pr_netaddr_get_port(agent_addr)), strerror(errno));
+    exit(1);
+  }
+
+  return 0;
+}
+
+static void snmp_agent_loop(int sockfd) {
+  fd_set listenfds;
+  struct timeval tv;
+  int res;
+
+  /* XXX Is it necessary to even have a timeout?  We could simply block
+   * in select(2) indefinitely, until either an event arrives or we are
+   * interrupted by a signal.
+   */
+  tv.tv_sec = 60;
+  tv.tv_usec = 0L;
+
+  while (TRUE) {
+    FD_ZERO(&listenfds);
+    FD_SET(sockfd, &listenfds);
+
+    res = select(sockfd + 1, &listenfds, NULL, NULL, &tv);
+    if (res == 0) {
+      /* Select timeout reached.  Just try again. */
+      continue;
+    }
+
+    if (res < 0) {
+      if (errno == EINTR) {
+        pr_signals_handle();
+        continue;
+      }
+
+    } else {
+      if (FD_ISSET(sockfd, &listenfds)) {
+        res = snmp_agent_handle_packet(sockfd);
+        if (res < 0) {
+          (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+            "error handling SNMP packet: %s", strerror(errno));
+        } 
+      }
+    }
+  }
+}
+
+static pid_t snmp_agent_start(const char *tables_dir, int agent_type,
+    pr_netaddr_t *agent_addr) {
+  int agent_fd;
+  pid_t agent_pid;
+
+  agent_pid = fork();
+  switch (agent_pid) {
+    case -1:
+      pr_log_pri(PR_LOG_ERR, MOD_SNMP_VERSION ": unable to fork: %s",
+        strerror(errno));
+      return 0;
+
+    case 0:
+      /* We're the child. */
+      break;
+
+    default:
+      /* We're the parent. */
+      return agent_pid;
+  }
+
+  /* Reset the cached PID, so that it is correctly reflected in the logs. */
+  session.pid = getpid();
+
+  snmp_daemonize(tables_dir);
+
+  /* Install our own signal handlers (mostly to ignore signals) */
+  (void) signal(SIGALRM, SIG_IGN);
+  (void) signal(SIGHUP, SIG_IGN);
+  (void) signal(SIGUSR1, SIG_IGN);
+  (void) signal(SIGUSR2, SIG_IGN);
+
+  /* Remove our event listeners. */
+  pr_event_unregister(&snmp_module, NULL, NULL);
+
+  /* XXX Check the agent_type variable, to see if we are a master agent or
+   * an AgentX sub-agent.
+   */
+
+  agent_fd = snmp_agent_listen(agent_addr);
+  if (agent_fd < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "unable to create listening socket for SNMP agent process: %s",
+      strerror(errno));
+    exit(0);
+  }
+
+  (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+    "SNMP agent process listening on UDP %s#%u",
+    pr_netaddr_get_ipstr(agent_addr), ntohs(pr_netaddr_get_port(agent_addr)));
+
+  /* XXX Should we chroot the SNMP agent process before dropping root privs?
+   * Would be a good idea; maybe to the SNMPTables directory?
+   */
+
+  PRIVS_ROOT
+  pr_proctitle_set("(listening for SNMP packets)");
+
+  PRIVS_REVOKE
+  snmp_agent_loop(agent_fd);
+
+  /* When we are done, we simply exit. */;
+  exit(0);
+}
+
+static void snmp_agent_stop(pid_t agent_pid) {
+  int res, status;
+  time_t start_time = time(NULL);
+
+  if (agent_pid == 0) {
+    /* Nothing to do. */
+    return;
+  }
+
+  /* Litmus test: is the SNMP agent process still around?  If not, there's
+   * nothing for us to do.
+   */
+  res = kill(agent_pid, 0);
+  if (res < 0 &&
+      errno == ESRCH) {
+    return;
+  }
+  
+  res = kill(agent_pid, SIGTERM);
+  if (res < 0) {
+    int xerrno = errno;
+
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error sending SIGTERM (signal %d) to SNMP agent process ID %lu: %s",
+      SIGTERM, (unsigned long) agent_pid, strerror(xerrno));
+  }
+
+  /* Poll every 500 millsecs. */
+  pr_timer_usleep(500 * 1000);
+
+  res = waitpid(agent_pid, &status, WNOHANG);
+  while (res <= 0) {
+    if (res < 0) {
+      if (errno == EINTR) {
+        pr_signals_handle();
+        continue;
+      }
+
+      if (errno == ECHILD) {
+        /* XXX Maybe we shouldn't be using waitpid(2) here, since the
+         * main SIGCHLD handler may handle the termination of the SNMP
+         * agent process?
+         */
+
+        return;
+      }
+
+      if (errno != EINTR) {
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "error waiting for SNMP agent process ID %lu: %s",
+          (unsigned long) agent_pid, strerror(errno));
+        status = -1;
+        break;
+      }
+    }
+
+    /* Check the time elapsed since we started. */
+    if ((time(NULL) - start_time) > snmp_agent_timeout) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "SNMP agent process ID %lu took longer than timeout (%lu secs) to "
+        "stop, sending SIGKILL (signal %d)", (unsigned long) agent_pid,
+        snmp_agent_timeout, SIGKILL);
+      res = kill(agent_pid, SIGKILL);
+      if (res < 0) {
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+         "error sending SIGKILL (signal %d) to SNMP agent process ID %lu: %s",
+         SIGKILL, (unsigned long) agent_pid, strerror(errno));
+      }
+
+      break;
+    }
+
+    /* Poll every 500 millsecs. */
+    pr_timer_usleep(500 * 1000);
+  }
+
+  if (WIFEXITED(status)) {
+    int exit_status;
+
+    exit_status = WEXITSTATUS(status);
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "SNMP agent process ID %lu terminated normally, with exit status %d",
+      (unsigned long) agent_pid, exit_status);
+  }
+
+  if (WIFSIGNALED(status)) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "SNMP agent process ID %lu died from signal %d",
+      (unsigned long) agent_pid, WTERMSIG(status));
+
+    if (WCOREDUMP(status)) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "SNMP agent process ID %lu created a coredump",
+        (unsigned long) agent_pid);
+    }
+  }
+
+  return;
+}
+
+/* Configuration handlers
+ */
+
+/* usage: SNMPAgent "master"|"agentx" address port */
+MODRET set_snmpagent(cmd_rec *cmd) {
+  config_rec *c;
+  int agent_type;
+  pr_netaddr_t *agent_addr;
+  int agent_port;
+
+  CHECK_ARGS(cmd, 3);
+  CHECK_CONF(cmd, CONF_ROOT);
+
+  if (strncasecmp(cmd->argv[1], "master", 7) == 0) {
+    agent_type = SNMP_AGENT_TYPE_MASTER;
+
+  } else if (strncasecmp(cmd->argv[1], "agentx", 7) == 0) {
+    agent_type = SNMP_AGENT_TYPE_AGENTX;
+
+  } else {
+    CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unsupported SNMP agent type '",
+      cmd->argv[1], "'", NULL));
+  }
+
+  agent_addr = pr_netaddr_get_addr(snmp_pool, cmd->argv[2], NULL);
+  if (agent_addr == NULL) {
+    CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unable to resolve \"",
+      cmd->argv[2], "\"", NULL));
+  }
+
+  agent_port = atoi(cmd->argv[3]);
+  pr_netaddr_set_port(agent_addr, htons(agent_port));
+
+  c = add_config_param(cmd->argv[0], 2, NULL, NULL);
+  c->argv[0] = palloc(c->pool, sizeof(int));
+  *((int *) c->argv[0]) = agent_type;
+  c->argv[1] = agent_addr;
+ 
+  return PR_HANDLED(cmd);
+}
+
+/* usage: SNMPCommunity community */
+MODRET set_snmpcommunity(cmd_rec *cmd) {
+  CHECK_ARGS(cmd, 1);
+  CHECK_CONF(cmd, CONF_ROOT);
+
+  (void) add_config_param_str(cmd->argv[0], 1, cmd->argv[1]);
+  return PR_HANDLED(cmd);
+}
+
+/* usage: SNMPEnable on|off */
+MODRET set_snmpenable(cmd_rec *cmd) {
+  int bool = -1;
+  config_rec *c;
+
+  CHECK_ARGS(cmd, 1);
+  CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
+
+  bool = get_boolean(cmd, 1);
+  if (bool == -1) {
+    CONF_ERROR(cmd, "expected Boolean parameter");
+  }
+
+  c = add_config_param(cmd->argv[0], 1, NULL);
+  c->argv[0] = palloc(c->pool, sizeof(int));
+  *((int *) c->argv[0]) = bool;
+
+  return PR_HANDLED(cmd);
+}
+
+/* usage: SNMPEngine on|off */
+MODRET set_snmpengine(cmd_rec *cmd) {
+  int bool = 1;
+  config_rec *c;
+
+  CHECK_ARGS(cmd, 1);
+  CHECK_CONF(cmd, CONF_ROOT);
+
+  bool = get_boolean(cmd, 1);
+  if (bool == -1)
+    CONF_ERROR(cmd, "expected Boolean parameter");
+
+  c = add_config_param(cmd->argv[0], 1, NULL);
+  c->argv[0] = pcalloc(c->pool, sizeof(int));
+  *((int *) c->argv[0]) = bool;
+
+  return PR_HANDLED(cmd);
+}
+
+/* usage: SNMPLog path|"none" */
+MODRET set_snmplog(cmd_rec *cmd) {
+  CHECK_ARGS(cmd, 1);
+  CHECK_CONF(cmd, CONF_ROOT);
+
+  (void) add_config_param_str(cmd->argv[0], 1, cmd->argv[1]);
+  return PR_HANDLED(cmd);
+}
+
+/* usage: SNMPMaxVariables count */
+MODRET set_snmpmaxvariables(cmd_rec *cmd) {
+  int count = 0;
+  config_rec *c;
+
+  CHECK_ARGS(cmd, 1);
+  CHECK_CONF(cmd, CONF_ROOT);
+
+  count = atoi(cmd->argv[1]);
+  if (count < 0) {
+    CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "count '", cmd->argv[1],
+      "' must be greater than zero", NULL));
+  }
+
+  c = add_config_param(cmd->argv[0], 1, NULL);
+  c->argv[0] = palloc(c->pool, sizeof(unsigned int));
+  *((unsigned int *) c->argv[0]) = count;
+
+  return PR_HANDLED(cmd);
+}
+
+/* usage: SNMPOptions opt1 ... optN */
+MODRET set_snmpoptions(cmd_rec *cmd) {
+  CHECK_CONF(cmd, CONF_ROOT);
+
+  /* XXX Implement;
+   *
+   *  NoSNMPv1
+   *  NoSNMPv2
+   *  NoSMPv3
+   *
+   * Describe how these relate to SNMPProtocol; or should these be folded
+   * into SNMPProtocol, e.g.:
+   *
+   *  SNMPProtocol 2-3
+   *
+   * Default SNMPProtocol would then be "1-3".
+   */
+  
+  return PR_HANDLED(cmd);
+}
+
+/* usage: SNMPTables path */
+MODRET set_snmptables(cmd_rec *cmd) {
+  int res;
+  struct stat st;
+ 
+  CHECK_ARGS(cmd, 1);
+  CHECK_CONF(cmd, CONF_ROOT);
+ 
+  if (*cmd->argv[1] != '/') {
+    CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "must be a full path: '",
+      cmd->argv[1], "'", NULL));
+  }
+
+  res = stat(cmd->argv[1], &st);
+  if (res < 0) {
+    if (errno != ENOENT) {
+      CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unable to stat '", cmd->argv[1],
+        "': ", strerror(errno), NULL));
+    }
+
+    pr_log_debug(DEBUG0, MOD_SNMP_VERSION
+      ": SNMPTables directory '%s' does not exist, creating it", cmd->argv[1]);
+
+    /* Create the directory. */
+    res = snmp_mkpath(cmd->tmp_pool, cmd->argv[1], geteuid(), getegid(), 0755);
+    if (res < 0) {
+      CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unable to create directory '",
+        cmd->argv[1], "': ", strerror(errno), NULL));
+    }
+
+    pr_log_debug(DEBUG2, MOD_SNMP_VERSION
+      ": created SNMPTables directory '%s'", cmd->argv[1]);
+
+  } else {
+    if (!S_ISDIR(st.st_mode)) {
+      CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unable to use '", cmd->argv[1],
+        ": Not a directory", NULL));
+    }
+  }
+
+  (void) add_config_param_str(cmd->argv[0], 1, cmd->argv[1]);
+  return PR_HANDLED(cmd);
+}
+
+/* usage: SNMPTraps address port */
+MODRET set_snmptraps(cmd_rec *cmd) {
+
+  /* XXX */
+
+  CHECK_ARGS(cmd, 2);
+  CHECK_CONF(cmd, CONF_ROOT);
+
+  return PR_HANDLED(cmd);
+}
+
+/* Command handlers
+ */
+
+MODRET snmp_log_list(cmd_rec *cmd) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_DIR_LIST_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ftp.dataTransfers.dirListTotal: %s", strerror(errno));
+  }
+
+  return PR_DECLINED(cmd);
+}
+
+MODRET snmp_err_list(cmd_rec *cmd) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_DIR_LIST_ERR_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ftp.dataTranfers.dirListFailedTotal: %s", strerror(errno));
+  }
+
+  return PR_DECLINED(cmd);
+}
+
+MODRET snmp_log_pass(cmd_rec *cmd) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_LOGINS_F_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for ftp.logins.loginsTotal: %s",
+      strerror(errno));
+  }
+
+  if (session.anon_config != NULL) {
+    res = snmp_db_incr_value(SNMP_DB_FTP_LOGINS_F_ANON_COUNT, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "ftp.logins.anonLoginCount: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(SNMP_DB_FTP_LOGINS_F_ANON_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "ftp.logins.anonLoginTotal: %s", strerror(errno));
+    }
+  }
+
+  return PR_DECLINED(cmd);
+}
+
+MODRET snmp_err_pass(cmd_rec *cmd) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_LOGINS_F_ERR_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ftp.logins.loginFailedTotal: %s", strerror(errno));
+  }
+
+  return PR_DECLINED(cmd);
+}
+
+MODRET snmp_log_retr(cmd_rec *cmd) {
+  uint32_t retr_kb;
+  off_t rem_bytes;
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_FILE_DOWNLOAD_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for ftp.fileDownloadTotal: %s",
+      strerror(errno));
+  }
+
+  /* We also need to increment the KB download count.  We know the number
+   * of bytes downloaded as an off_t here, but we only store the number of KB
+   * in the mod_snmp db tables.
+   * 
+   * We could just increment by xfer_bytes / 1024, but that would mean that
+   * several small files of say 999 bytes could be downloaded, and the KB
+   * count would not be incremented.
+   *
+   * To deal with this situation, we use the snmp_retr_bytes static variable
+   * as a "holding bucket" of bytes, from which we get the KB to add to the
+   * db tables.
+   */
+  snmp_retr_bytes += session.xfer.total_bytes;
+
+  retr_kb = (snmp_retr_bytes / 1024);
+  rem_bytes = (snmp_retr_bytes % 1024);
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_KB_DOWNLOAD_TOTAL, retr_kb);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for ftp.kbDownloadTotal: %s",
+      strerror(errno));
+  }
+
+  snmp_retr_bytes = rem_bytes;
+  return PR_DECLINED(cmd);
+}
+
+MODRET snmp_err_retr(cmd_rec *cmd) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ftp.fileDownloadFailedTotal: %s", strerror(errno));
+  }
+
+  return PR_DECLINED(cmd);
+}
+
+MODRET snmp_log_stor(cmd_rec *cmd) {
+  uint32_t stor_kb;
+  off_t rem_bytes;
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_FILE_UPLOAD_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for ftp.fileUploadTotal: %s",
+      strerror(errno));
+  }
+
+  /* We also need to increment the KB upload count.  We know the number
+   * of bytes downloaded as an off_t here, but we only store the number of KB
+   * in the mod_snmp db tables.
+   * 
+   * We could just increment by xfer_bytes / 1024, but that would mean that
+   * several small files of say 999 bytes could be uploaded, and the KB
+   * count would not be incremented.
+   *
+   * To deal with this situation, we use the snmp_stor_bytes static variable
+   * as a "holding bucket" of bytes, from which we get the KB to add to the
+   * db tables.
+   */
+  snmp_stor_bytes += session.xfer.total_bytes;
+
+  stor_kb = (snmp_stor_bytes / 1024);
+  rem_bytes = (snmp_stor_bytes % 1024);
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_KB_UPLOAD_TOTAL, stor_kb);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for ftp.kbUploadTotal: %s",
+      strerror(errno));
+  }
+
+  snmp_stor_bytes = rem_bytes;
+  return PR_DECLINED(cmd);
+}
+
+MODRET snmp_err_stor(cmd_rec *cmd) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_FILE_UPLOAD_ERR_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for ftp.fileUploadFailedTotal: %s",
+      strerror(errno));
+  }
+
+  return PR_DECLINED(cmd);
+}
+
+/* Event handlers
+ */
+
+static void snmp_auth_code_ev(const void *event_data, void *user_data) {
+  int auth_code, field, res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  auth_code = *((int *) event_data);
+
+  if (auth_code >= 0) {
+    /* We only use this listener for recording the reasons why authentication
+     * might fail.
+     */
+    return;
+  }
+
+  switch (auth_code) {
+    case PR_AUTH_NOPWD:
+      field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_USER_TOTAL;
+      break;
+
+    case PR_AUTH_BADPWD:
+      field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
+      break;
+
+    default:
+      field = SNMP_DB_FTP_LOGINS_F_ERR_GENERAL_TOTAL;
+      break;
+  }
+  
+  res = snmp_db_incr_value(field, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error decrementing SNMP database for login failure total: %s",
+      strerror(errno));
+  }
+}
+
+static void snmp_cmd_invalid_ev(const void *event_data, void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+  
+  res = snmp_db_incr_value(SNMP_DB_FTP_SESS_F_CMD_INVALID_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error decrementing SNMP database for "
+      "ftp.connections.commandInvalidTotal: %s", strerror(errno));
+  }
+}
+
+static void snmp_exit_ev(const void *event_data, void *user_data) {
+  int res;
+
+  if (session.disconnect_reason == PR_SESS_DISCONNECT_SESSION_INIT_FAILED) {
+    res = snmp_db_incr_value(SNMP_DB_DAEMON_F_CONN_REFUSED_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for "
+        "daemon.connectionRefusedTotal: %s", strerror(errno));
+    }
+
+  } else {
+    res = snmp_db_incr_value(SNMP_DB_DAEMON_F_CONN_COUNT, -1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for daemon.connectionCount: %s",
+        strerror(errno));
+    }
+
+    if (session.anon_config != NULL) {
+      res = snmp_db_incr_value(SNMP_DB_FTP_LOGINS_F_ANON_COUNT, -1);
+      if (res < 0) {
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "error decrementing SNMP database for "
+          "ftp.logins.anonLoginCount: %s", strerror(errno));
+      }
+    }
+  }
+
+  if (snmp_logfd >= 0) {
+    (void) close(snmp_logfd);
+    snmp_logfd = -1;
+  }
+}
+
+static void snmp_max_inst_ev(const void *event_data, void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+  
+  res = snmp_db_incr_value(SNMP_DB_DAEMON_F_MAXINST_COUNT, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error decrementing SNMP database for daemon.maxInstancesLimitTotal: %s",
+      strerror(errno));
+  }
+}
+
+#if defined(PR_SHARED_MODULE)
+static void snmp_mod_unload_ev(const void *event_data, void *user_data) {
+  if (strncmp((const char *) event_data, "mod_snmp.c", 11) == 0) {
+    register unsigned int i;
+
+    /* Unregister ourselves from all events. */
+    pr_event_unregister(&snmp_module, NULL, NULL);
+
+    for (i = 0; snmp_table_ids[i] > 0; i++) {
+      snmp_db_close(snmp_pool, snmp_table_ids[i]);
+    }
+
+    destroy_pool(snmp_pool);
+    snmp_pool = NULL;
+
+    (void) close(snmp_logfd);
+    snmp_logfd = -1;
+  }
+}
+#endif
+
+static void snmp_postparse_ev(const void *event_data, void *user_data) {
+  register unsigned int i;
+  config_rec *c;
+  server_rec *s;
+  unsigned int nvhosts = 0;
+  int res;
+
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPEngine", FALSE);
+  if (c) {
+    snmp_engine = *((int *) c->argv[0]);
+  }
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPLog", FALSE);
+  if (c) {
+    snmp_logname = c->argv[0];
+
+    if (strncasecmp(snmp_logname, "none", 5) != 0) {
+      int xerrno;
+
+      pr_signals_block();
+      PRIVS_ROOT
+      res = pr_log_openfile(snmp_logname, &snmp_logfd, 0600);
+      xerrno = errno;
+      PRIVS_RELINQUISH
+      pr_signals_unblock();
+
+      if (res < 0) {
+        if (res == -1) {
+          pr_log_pri(PR_LOG_NOTICE, MOD_SNMP_VERSION
+            ": notice: unable to open SNMPLog '%s': %s", snmp_logname,
+            strerror(xerrno));
+
+        } else if (res == PR_LOG_WRITABLE_DIR) {
+          pr_log_pri(PR_LOG_NOTICE, MOD_SNMP_VERSION
+            ": notice: unable to open SNMPLog '%s': parent directory is "
+            "world-writable", snmp_logname);
+
+        } else if (res == PR_LOG_SYMLINK) {
+          pr_log_pri(PR_LOG_NOTICE, MOD_SNMP_VERSION
+            ": notice: unable to open SNMPLog '%s': cannot log to a symlink",
+            snmp_logname);
+        }
+      }
+    }
+  }
+
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPCommunity", FALSE);
+  if (c == NULL) {
+    /* No SNMPCommunity configured, mod_snmp cannot authenticate messages
+     * properly.
+     */
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "no SNMPCommunity configured, disabling module");
+
+    snmp_engine = FALSE;
+    return;
+  }
+
+  snmp_community = c->argv[0];
+
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPMaxVariables", FALSE);
+  if (c != NULL) {
+    snmp_max_variables = *((unsigned int *) c->argv[0]);
+  }
+
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPTables", FALSE);
+  if (c == NULL) {
+    /* No SNMPTables configured, mod_snmp cannot run. */
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "no SNMPTables configured, disabling module");
+
+    snmp_engine = FALSE;
+    return;
+  }
+
+  if (snmp_db_set_root(c->argv[0]) < 0) {
+    /* Unable to configure the SNMPTables root for some reason... */
+
+    snmp_engine = FALSE;
+    return;
+  }
+
+  /* Create the variable database table files, based on the configured
+   * SNMPTables path
+   */
+
+  for (i = 0; snmp_table_ids[i] > 0; i++) {
+    res = snmp_db_open(snmp_pool, snmp_table_ids[i]);
+    if (res < 0) {
+      snmp_engine = FALSE;
+      return;
+    }
+  }
+
+  /* Iterate through the server_list, and count up the number of vhosts. */
+  for (s = (server_rec *) server_list->xas_list; s; s = s->next) {
+    nvhosts++;
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_DAEMON_F_VHOST_COUNT, nvhosts);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for daemon.vhostCount: %s",
+      strerror(errno));
+  }
+}
+
+static void snmp_restart_ev(const void *event_data, void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_DAEMON_F_RESTART_COUNT, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for daemon.restartCount: %s",
+      strerror(errno));
+  }
+
+  /* XXX Reset all of the Counter values.  To do this, create a separate
+   * snmp_counter_fields array.
+   */
+}
+
+static void snmp_shutdown_ev(const void *event_data, void *user_data) {
+  register unsigned int i;
+
+  snmp_agent_stop(snmp_agent_pid);
+
+  for (i = 0; snmp_table_ids[i] > 0; i++) {
+    snmp_db_close(snmp_pool, snmp_table_ids[i]);
+  }
+
+  destroy_pool(snmp_pool);
+  snmp_pool = NULL;
+
+  if (snmp_logfd >= 0) {
+    (void) close(snmp_logfd);
+    snmp_logfd = -1;
+  }
+}
+
+static void snmp_startup_ev(const void *event_data, void *user_data) {
+  config_rec *c;
+  const char *tables_dir;
+  pr_netaddr_t *agent_addr;
+  int agent_type;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  if (ServerType == SERVER_INETD) {
+    snmp_engine = FALSE;
+    pr_log_debug(DEBUG0, MOD_SNMP_VERSION
+      ": cannot support SNMP for ServerType inetd, disabling module");
+    return;
+  }
+
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPTables", FALSE);
+  if (c == NULL) {
+    /* No SNMPTables configured, mod_snmp cannot run. */
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "no SNMPTables configured, disabling module");
+
+    snmp_engine = FALSE;
+    return;
+  }
+
+  tables_dir = c->argv[0];
+
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPAgent", FALSE);
+  if (c == NULL) {
+    snmp_engine = FALSE;
+    pr_log_debug(DEBUG0, MOD_SNMP_VERSION
+      ": missing required SNMPAgent directive, disabling module");
+    return;
+  }
+
+  gettimeofday(&snmp_start_tv, NULL);
+
+  agent_type = *((int *) c->argv[0]);
+  agent_addr = c->argv[1];
+
+  snmp_agent_pid = snmp_agent_start(tables_dir, agent_type, agent_addr);
+  if (snmp_agent_pid == 0) {
+    snmp_engine = FALSE;
+    pr_log_debug(DEBUG0, MOD_SNMP_VERSION
+      ": failed to start agent listening process, disabling module");
+  }
+
+  return;
+}
+
+static void snmp_timeout_idle_ev(const void *event_data, void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_TIMEOUTS_F_IDLE_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing ftp.timeouts.idleTimeoutTotal: %s",
+       strerror(errno));
+  }
+}
+
+static void snmp_timeout_login_ev(const void *event_data, void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_TIMEOUTS_F_LOGIN_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing ftp.timeouts.loginTimeoutTotal: %s",
+       strerror(errno));
+  }
+}
+
+static void snmp_timeout_noxfer_ev(const void *event_data, void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_TIMEOUTS_F_NOXFER_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing ftp.timeouts.noTransferTimeoutTotal: %s",
+       strerror(errno));
+  }
+}
+
+static void snmp_timeout_stalled_ev(const void *event_data, void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_FTP_TIMEOUTS_F_STALLED_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing ftp.timeouts.stalledTimeoutTotal: %s",
+       strerror(errno));
+  }
+}
+
+static void snmp_trap_ev(const void *event_data, void *user_data) {
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  /* Used by modules to somehow communicate to the SNMP daemon process
+   * to send a trap?  Or send the trap directly from the session process?
+   * Probably the latter.
+   */
+
+}
+
+/* XXX Do we want to support any Controls/ftpctl actions? */
+
+/* Initialization routines
+ */
+
+static int snmp_init(void) {
+  struct protoent *pre = NULL;
+
+  snmp_pool = make_sub_pool(permanent_pool);
+  pr_pool_tag(snmp_pool, MOD_SNMP_VERSION);
+
+#if defined(PR_SHARED_MODULE)
+  pr_event_register(&snmp_module, "core.module-unload", snmp_mod_unload_ev,
+    NULL);
+#endif
+  pr_event_register(&snmp_module, "core.postparse", snmp_postparse_ev, NULL);
+  pr_event_register(&snmp_module, "core.restart", snmp_restart_ev, NULL);
+  pr_event_register(&snmp_module, "core.shutdown", snmp_shutdown_ev, NULL);
+  pr_event_register(&snmp_module, "core.startup", snmp_startup_ev, NULL);
+
+  pr_event_register(&snmp_module, "mod_snmp.trap", snmp_trap_ev, NULL);
+
+  /* Normally we should register the 'core.exit' event listener in the
+   * sess_init callback.  However, we use this listener to listen for
+   * refused connections, e.g. connections refused by other modules'
+   * sess_init callbacks.  And depending on the module load order, another
+   * module might refuse the connection before mod_snmp's sess_init callback
+   * is invoked, which would prevent mod_snmp from registering its 'core.exit'
+   * event listener.
+   *
+   * Thus to work around this timing issue, we register our 'core.exit' event
+   * listener here, in the daemon process.  It should not hurt anything.
+   */
+  pr_event_register(&snmp_module, "core.exit", snmp_exit_ev, NULL);
+
+#ifdef HAVE_SETPROTOENT
+  setprotoent(FALSE);
+#endif
+
+  pre = getprotobyname("udp");
+  if (pre != NULL) {
+    udp_proto = pre->p_proto;
+  }
+
+#ifdef HAVE_ENDPROTOENT
+  endprotoent();
+#endif
+
+  return 0;
+}
+
+static int snmp_sess_init(void) {
+  config_rec *c;
+  int res;
+
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPEnable", FALSE);
+  if (c) {
+    snmp_enabled = *((int *) c->argv[0]);
+  }
+
+  if (snmp_enabled == FALSE) {
+    snmp_engine = FALSE;
+    return 0;
+  }
+
+  pr_event_register(&snmp_module, "core.invalid-command",
+    snmp_cmd_invalid_ev, NULL);
+  pr_event_register(&snmp_module, "core.max-instances",
+    snmp_max_inst_ev, NULL);
+  pr_event_register(&snmp_module, "core.timeout-idle",
+    snmp_timeout_idle_ev, NULL);
+  pr_event_register(&snmp_module, "core.timeout-login",
+    snmp_timeout_login_ev, NULL);
+  pr_event_register(&snmp_module, "core.timeout-no-transfer",
+    snmp_timeout_noxfer_ev, NULL);
+  pr_event_register(&snmp_module, "core.timeout-stalled",
+    snmp_timeout_stalled_ev, NULL);
+  pr_event_register(&snmp_module, "core.unhandled-command",
+    snmp_cmd_invalid_ev, NULL);
+
+  pr_event_register(&snmp_module, "mod_auth.authentication-code",
+    snmp_auth_code_ev, NULL);
+
+  res = snmp_db_incr_value(SNMP_DB_DAEMON_F_CONN_COUNT, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing daemon.connectionCount: %s",
+      strerror(errno));
+  }
+
+  res = snmp_db_incr_value(SNMP_DB_DAEMON_F_CONN_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing daemon.connectionTotal: %s",
+      strerror(errno));
+  }
+
+  return 0;
+}
+
+/* Module API tables
+ */
+
+static conftable snmp_conftab[] = {
+  { "SNMPAgent",	set_snmpagent,		NULL },
+  { "SNMPCommunity",	set_snmpcommunity,	NULL },
+  { "SNMPEnable",	set_snmpenable,		NULL },
+  { "SNMPEngine",	set_snmpengine,		NULL },
+  { "SNMPLog",		set_snmplog,		NULL },
+  { "SNMPMaxVariables",	set_snmpmaxvariables,	NULL },
+  { "SNMPOptions",	set_snmpoptions,	NULL },
+  { "SNMPTables",	set_snmptables,		NULL },
+  { "SNMPTraps",	set_snmptraps,		NULL },
+  { NULL }
+};
+
+static cmdtable snmp_cmdtab[] = {
+  { LOG_CMD,		C_LIST,	G_NONE,	snmp_log_list,	FALSE,	FALSE },
+  { LOG_CMD_ERR,	C_LIST,	G_NONE,	snmp_err_list,	FALSE,	FALSE },
+
+  { LOG_CMD,		C_MLSD,	G_NONE,	snmp_log_list,	FALSE,	FALSE },
+  { LOG_CMD_ERR,	C_MLSD,	G_NONE,	snmp_err_list,	FALSE,	FALSE },
+
+  { LOG_CMD,		C_NLST,	G_NONE,	snmp_log_list,	FALSE,	FALSE },
+  { LOG_CMD_ERR,	C_NLST,	G_NONE,	snmp_err_list,	FALSE,	FALSE },
+
+  { LOG_CMD,		C_PASS,	G_NONE,	snmp_log_pass,	FALSE,	FALSE },
+  { LOG_CMD_ERR,	C_PASS,	G_NONE,	snmp_err_pass,	FALSE,	FALSE },
+
+  { LOG_CMD,		C_RETR,	G_NONE,	snmp_log_retr,	FALSE,	FALSE },
+  { LOG_CMD_ERR,	C_RETR,	G_NONE,	snmp_err_retr,	FALSE,	FALSE },
+
+  { LOG_CMD,		C_STOR,	G_NONE,	snmp_log_stor,	FALSE,	FALSE },
+  { LOG_CMD_ERR,	C_STOR,	G_NONE,	snmp_err_stor,	FALSE,	FALSE },
+
+  { 0, NULL }
+};
+
+module snmp_module = {
+  /* Always NULL */
+  NULL, NULL,
+
+  /* Module API version */
+  0x20,
+
+  /* Module name */
+  "snmp",
+
+  /* Module configuration handler table */
+  snmp_conftab,
+
+  /* Module command handler table */
+  snmp_cmdtab,
+
+  /* Module authentication handler table */
+  NULL,
+
+  /* Module initialization */
+  snmp_init,
+
+  /* Session initialization */
+  snmp_sess_init,
+
+  /* Module version */
+  MOD_SNMP_VERSION
+};
+

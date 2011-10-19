@@ -1,0 +1,4923 @@
+package ProFTPD::Tests::Modules::mod_snmp;
+
+use lib qw(t/lib);
+use base qw(ProFTPD::TestSuite::Child);
+use strict;
+
+use Data::Dumper;
+use File::Spec;
+use IO::Handle;
+
+use ProFTPD::TestSuite::FTP;
+use ProFTPD::TestSuite::Utils qw(:auth :config :running :test :testsuite);
+
+$| = 1;
+
+my $order = 0;
+
+my $TESTS = {
+  snmp_v1_get_unknown => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_wrong_community => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_daemon_software => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_daemon_version => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_daemon_admin => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_daemon_admin_with_config => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_daemon_uptime => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_daemon_vhost_count => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  # XXX Add snmp_v1_get_daemon_vhost_count w/ 2 vhosts in config
+
+  snmp_v1_get_daemon_restart_count => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_daemon_segfault_count => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_daemon_maxinsts_count => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_multi => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_multi_with_unknown => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_next => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_next_unknown => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_next_missing_instance_id => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_next_multi => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_next_multi_with_unknown => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_set => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  # snmp_v1_trap
+  # XXX Net::SNMP's session->trap() method seems buggy; often crashes/
+  #  unit tests.
+
+  snmp_v2_get_unknown => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v2_get_missing_instance_id => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v2_get_next_end_of_mib_view => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v2_get_bulk => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v2_get_bulk_max_repetitions_only => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v2_get_bulk_end_of_mib_view => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v2_set_no_access => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  # snmp_v3_XXX
+
+  snmp_config_limit => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_config_max_variables => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+};
+
+sub new {
+  return shift()->SUPER::new(@_);
+}
+
+sub list_tests {
+  # Check for the required Perl modules:
+  #
+  #  Net-SNMP
+
+  my $required = [qw(
+    Net::SNMP
+  )];
+
+  foreach my $req (@$required) {
+    eval "use $req";
+    if ($@) {
+      print STDERR "\nWARNING:\n + Module '$req' not found, skipping all tests\n
+";
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Unable to load $req: $@\n";
+      }
+
+      return qw(testsuite_empty_test);
+    }
+  }
+
+  return testsuite_get_runnable_tests($TESTS);
+}
+
+sub snmp_v1_get_unknown {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.1.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      if ($snmp_resp) {
+        die("SNMP response received unexpectedly");
+      }
+
+      my $err = $snmp_sess->error();
+      my $expected = 'Received noSuchName(2) error-status at error-index 1';
+
+      $self->assert($expected eq $err,
+        test_msg("Expected error '$expected' for OID, got '$err'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_wrong_community {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.1.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+
+        # Deliberately configure the wrong community name
+        -community => 'foo',
+
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      if ($snmp_resp) {
+        die("SNMP response received unexpectedly");
+      }
+
+      # We don't expect to receive a response here; the community info is
+      # wrong.  The only indication *might* be a trap that's generated, and
+      # sent somewhere else.
+
+      my $err = $snmp_sess->error();
+      my $expected = 'No response from remote host "127.0.0.1"';
+
+      $self->assert($expected eq $err,
+        test_msg("Expected error '$expected' for OID, got '$err'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_daemon_software {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.1.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      my $expected = 'proftpd';
+
+      $self->assert($expected eq $value,
+        test_msg("Expected value '$expected' for OID, got '$value'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_daemon_version {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.2.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      my $expected = '^ProFTPD Version';
+
+      $self->assert(qr/$expected/, $value,
+        test_msg("Expected value '$expected' for OID, got '$value'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_daemon_admin {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.3.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      # The default proftpd string, without ServerAdmin configured.
+      my $expected = 'root@127.0.0.1';
+
+      $self->assert(qr/$expected/, $value,
+        test_msg("Expected value '$expected' for OID, got '$value'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_daemon_admin_with_config {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.3.0';
+  my $server_admin = 'tj@castaglia.org';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    ServerAdmin => $server_admin,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      my $expected = $server_admin;
+
+      $self->assert(qr/$expected/, $value,
+        test_msg("Expected value '$expected' for OID, got '$value'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_daemon_uptime {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.4.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      # Wait a couple of secs, so that the uptime has a non-zero value
+      sleep(2);
+
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      my $expected = '^\d+\.\d+ ';
+
+      $self->assert(qr/$expected/, $value,
+        test_msg("Expected value '$expected' for OID, got '$value'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_daemon_vhost_count {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.5.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      my $expected = 1;
+
+      $self->assert($expected == $value,
+        test_msg("Expected value $expected for OID, got $value"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_daemon_restart_count {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.6.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      my $expected = 0;
+
+      $self->assert($expected == $value,
+        test_msg("Expected value $expected for OID, got $value"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_daemon_segfault_count {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.7.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      my $expected = 0;
+
+      $self->assert($expected == $value,
+        test_msg("Expected value $expected for OID, got $value"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_daemon_maxinsts_count {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.8.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      my $expected = 0;
+
+      $self->assert($expected == $value,
+        test_msg("Expected value $expected for OID, got $value"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_multi {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oids = [
+    '1.3.6.1.4.1.17852.2.2.1.1.0',
+    '1.3.6.1.4.1.17852.2.2.1.3.0',
+  ];
+
+  my $expected_oid_values = {
+    '1.3.6.1.4.1.17852.2.2.1.1.0' => 'proftpd',
+    '1.3.6.1.4.1.17852.2.2.1.3.0' => 'root@127.0.0.1',
+  };
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $request_oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OIDs in the response?
+      foreach my $request_oid (@$request_oids) {
+        unless (defined($snmp_resp->{$request_oid})) {
+          die("Missing required OID $request_oid in response");
+        }
+
+        my $value = $snmp_resp->{$request_oid};
+
+        if ($ENV{TEST_VERBOSE}) {
+          print STDERR "Requested OID $request_oid = $value\n";
+        }
+
+        my $expected = $expected_oid_values->{$request_oid};
+
+        $self->assert($expected eq $value,
+          test_msg("Expected value '$expected' for OID, got '$value'"));
+      }
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_multi_with_unknown {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oids = [
+    '1.3.6.1.4.1.17852.2.2.1.1.0',
+    '1.3.6.1.4.1.17852.1.1',
+  ];
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $request_oids,
+      );
+      if ($snmp_resp) {
+        die("SNMP response received unexpectedly");
+      }
+
+      my $err = $snmp_sess->error();
+      my $expected = 'Received noSuchName(2) error-status at error-index 2';
+
+      $self->assert($expected eq $err,
+        test_msg("Expected error '$expected' for OIDs, got '$err'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_next {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.2.0';
+  my $next_oid = '1.3.6.1.4.1.17852.2.2.1.3.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_next_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the next OID of the requested OID in the response?
+      unless (defined($snmp_resp->{$next_oid})) {
+        die("Missing required OID $next_oid in response");
+      }
+
+      my $value = $snmp_resp->{$next_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $next_oid = $value\n";
+      }
+
+      # The default proftpd string, without ServerAdmin configured.
+      my $expected = 'root@127.0.0.1';
+
+      $self->assert(qr/$expected/, $value,
+        test_msg("Expected value '$expected' for OID, got '$value'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_next_unknown {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.1.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_next_request(
+        -varbindList => $oids,
+      );
+      if ($snmp_resp) {
+        die("SNMP response received unexpectedly");
+      }
+
+      my $err = $snmp_sess->error();
+      my $expected = 'Received noSuchName(2) error-status at error-index 1';
+
+      $self->assert($expected eq $err,
+        test_msg("Expected error '$expected' for OID, got '$err'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_next_missing_instance_id {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.1';
+  my $next_oid = '1.3.6.1.4.1.17852.2.2.1.1.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_next_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the next OID of the requested OID in the response?
+      unless (defined($snmp_resp->{$next_oid})) {
+        die("Missing required OID $next_oid in response");
+      }
+
+      my $value = $snmp_resp->{$next_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $next_oid = $value\n";
+      }
+
+      my $expected = 'proftpd';
+
+      $self->assert(qr/$expected/, $value,
+        test_msg("Expected value '$expected' for OID, got '$value'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_next_multi {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oids = [
+    '1.3.6.1.4.1.17852.2.2.1.2.0',
+    '1.3.6.1.4.1.17852.2.2.1.4.0',
+  ];
+
+  my $next_oid_values = {
+    '1.3.6.1.4.1.17852.2.2.1.3.0' => 'root@127.0.0.1',
+    '1.3.6.1.4.1.17852.2.2.1.5.0' => '1',
+  };
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $snmp_resp = $snmp_sess->get_next_request(
+        -varbindList => $request_oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the expected OIDs in the response?
+      foreach my $next_oid (keys(%$next_oid_values)) {
+        unless (defined($snmp_resp->{$next_oid})) {
+          die("Missing required OID $next_oid in response");
+        }
+
+        my $value = $snmp_resp->{$next_oid};
+
+        if ($ENV{TEST_VERBOSE}) {
+          print STDERR "Requested OID $next_oid = $value\n";
+        }
+
+        my $expected = $next_oid_values->{$next_oid};
+
+        $self->assert($expected eq $value,
+          test_msg("Expected value '$expected' for OID, got '$value'"));
+      }
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_next_multi_with_unknown {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oids = [
+    '1.3.6.1.4.1.17852.2.2.1.2.0',
+    '1.3.6.1.4.1.17852.1.1.0',
+  ];
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $snmp_resp = $snmp_sess->get_next_request(
+        -varbindList => $request_oids,
+      );
+      if ($snmp_resp) {
+        die("SNMP response received unexpectedly");
+      }
+
+      my $err = $snmp_sess->error();
+      my $expected = 'Received noSuchName(2) error-status at error-index 2';
+
+      $self->assert($expected eq $err,
+        test_msg("Expected error '$expected', got '$err'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_set {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.1.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+  require Net::SNMP::Message;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $snmp_resp = $snmp_sess->set_request(
+        -varbindList => [ $request_oid, Net::SNMP::Message::OCTET_STRING(),
+                          'mod_smp' ],
+      );
+      if ($snmp_resp) {
+        die("SNMP response received unexpectedly");
+      }
+
+      my $err = $snmp_sess->error();
+      my $expected = 'Received noSuchName(2) error-status at error-index 1';
+
+      $self->assert($expected eq $err,
+        test_msg("Expected error '$expected' for OID, got '$err'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh, 10) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_trap {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.1.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+  require Net::SNMP::Message;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $snmp_resp = $snmp_sess->trap(
+        -varbindList => [ $request_oid, Net::SNMP::Message::OCTET_STRING(),
+                          'mod_smp' ],
+      );
+      if ($snmp_resp) {
+        die("SNMP response received unexpectedly");
+      }
+
+      my $err = $snmp_sess->error();
+      my $expected = 'Received noSuchName(2) error-status at error-index 1';
+
+      $self->assert($expected eq $err,
+        test_msg("Expected error '$expected' for OID, got '$err'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh, 10) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v2_get_unknown {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.1.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv2c',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      my $expected = 'noSuchObject';
+
+      $self->assert($expected eq $value,
+        test_msg("Expected value $expected for OID, got $value"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v2_get_missing_instance_id {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.1';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv2c',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      my $expected = 'noSuchInstance';
+
+      $self->assert($expected eq $value,
+        test_msg("Expected value '$expected' for OID, got '$value'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v2_get_next_end_of_mib_view {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.3.5.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv2c',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_next_request(
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the requested OID in the response?
+      unless (defined($snmp_resp->{$request_oid})) {
+        die("Missing required OID $request_oid in response");
+      }
+
+      my $value = $snmp_resp->{$request_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $request_oid = $value\n";
+      }
+
+      my $expected = 'endOfMibView';
+
+      $self->assert($expected eq $value,
+        test_msg("Expected value '$expected' for OID, got '$value'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v2_get_bulk {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.2.0';
+  my $next_oid = '1.3.6.1.4.1.17852.2.2.1.3.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv2c',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_bulk_request(
+        -nonrepeaters => 1,
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      # Do we have the next OID of the requested OID in the response?
+      unless (defined($snmp_resp->{$next_oid})) {
+        die("Missing required OID $next_oid in response");
+      }
+
+      my $value = $snmp_resp->{$next_oid};
+
+      if ($ENV{TEST_VERBOSE}) {
+        print STDERR "Requested OID $next_oid = $value\n";
+      }
+
+      # The default proftpd string, without ServerAdmin configured.
+      my $expected = 'root@127.0.0.1';
+
+      $self->assert(qr/$expected/, $value,
+        test_msg("Expected value '$expected' for OID, got '$value'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v2_get_bulk_max_repetitions_only {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.2.0';
+
+  my $next_oids = {
+    '1.3.6.1.4.1.17852.2.2.1.3.0' => 'root@127.0.0.1',
+    '1.3.6.1.4.1.17852.2.2.1.4.0' => '\d+\.\d+',
+  };
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv2c',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_bulk_request(
+        -maxrepetitions => 2,
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      foreach my $next_oid (keys(%$next_oids)) {
+        # Do we have the next OID of the requested OID in the response?
+        unless (defined($snmp_resp->{$next_oid})) {
+          die("Missing required OID $next_oid in response");
+        }
+
+        my $value = $snmp_resp->{$next_oid};
+
+        if ($ENV{TEST_VERBOSE}) {
+          print STDERR "Requested OID $next_oid = $value\n";
+        }
+
+        my $expected = $next_oids->{$next_oid};
+
+        $self->assert(qr/$expected/, $value,
+          test_msg("Expected value '$expected' for OID, got '$value'"));
+      }
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v2_get_bulk_end_of_mib_view {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.3.3.0';
+
+  my $next_oids = {
+    '1.3.6.1.4.1.17852.2.2.3.4.0' => '\d+',
+    '1.3.6.1.4.1.17852.2.2.3.5.0' => '\d+',
+    '1.3.6.1.4.1.17852.2.2.3.5.0 ' => 'endOfMibView',
+  };
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv2c',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_bulk_request(
+        -maxrepetitions => 5,
+        -varbindList => $oids,
+      );
+      unless ($snmp_resp) {
+        die("No SNMP response received: " . $snmp_sess->error());
+      }
+
+      foreach my $next_oid (keys(%$next_oids)) {
+        # Do we have the next OID of the requested OID in the response?
+        unless (defined($snmp_resp->{$next_oid})) {
+          die("Missing required OID $next_oid in response");
+        }
+
+        my $value = $snmp_resp->{$next_oid};
+
+        if ($ENV{TEST_VERBOSE}) {
+          print STDERR "Requested OID $next_oid = $value\n";
+        }
+
+        my $expected = $next_oids->{$next_oid};
+
+        $self->assert(qr/$expected/, $value,
+          test_msg("Expected value '$expected' for OID, got '$value'"));
+      }
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v2_set_no_access {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.1.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+  require Net::SNMP::Message;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv2c',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $snmp_resp = $snmp_sess->set_request(
+        -varbindList => [ $request_oid, Net::SNMP::Message::OCTET_STRING(),
+                          'mod_smp' ],
+      );
+      if ($snmp_resp) {
+        die("SNMP response received unexpectedly");
+      }
+
+      my $err = $snmp_sess->error();
+      my $expected = 'Received noAccess(6) error-status at error-index 1';
+
+      $self->assert($expected eq $err,
+        test_msg("Expected error '$expected' for OID, got '$err'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh, 10) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_config_limit {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oid = '1.3.6.1.4.1.17852.2.2.1.3.0';
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+
+    Limit => {
+      SNMP => {
+        Deny => '127.0.0.1',
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $oids = [$request_oid];
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $oids,
+      );
+      if ($snmp_resp) {
+        die("SNMP response received unexpectedly");
+      }
+
+      my $err = $snmp_sess->error();
+      my $expected = '^No response from remote host';
+
+      $self->assert(qr/$expected/, $err,
+        test_msg("Expected error '$expected', got '$err'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_config_max_variables {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $request_oids = [
+    '1.3.6.1.4.1.17852.2.2.1.1.0',
+    '1.3.6.1.4.1.17852.2.2.1.3.0',
+  ];
+
+  my $expected_oid_values = {
+    '1.3.6.1.4.1.17852.2.2.1.1.0' => 'proftpd',
+    '1.3.6.1.4.1.17852.2.2.1.3.0' => 'root@127.0.0.1',
+  };
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+
+        SNMPMaxVariables => 1,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+        -hostname => '127.0.0.1',
+        -port => $agent_port,
+        -version => 'snmpv1',
+        -community => $snmp_community,
+        -retries => 1,
+        -timeout => 3,
+        -translate => 1,
+      );
+      unless ($snmp_sess) {
+        die("Unable to create Net::SNMP session: $snmp_err");
+      }
+
+      if ($ENV{TEST_VERBOSE}) {
+        # From the Net::SNMP debug perldocs
+        my $debug_mask = (0x02|0x10|0x20);
+        $snmp_sess->debug($debug_mask);
+      }
+
+      my $snmp_resp = $snmp_sess->get_request(
+        -varbindList => $request_oids,
+      );
+      if ($snmp_resp) {
+        die("SNMP response received unexpectedly");
+      }
+
+      my $err = $snmp_sess->error();
+      my $expected = 'Received tooBig(1) error-status at error-index 0';
+
+      $self->assert($expected eq $err,
+        test_msg("Expected error '$expected', got '$err'"));
+
+      $snmp_sess->close();
+      $snmp_sess = undef;
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+1;
