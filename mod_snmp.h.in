@@ -63,6 +63,6 @@
 /* Miscellaneous */
 extern int snmp_logfd;
 extern pool *snmp_pool;
-extern time_t snmp_start_time;
+extern struct timeval snmp_start_tv;
 
 #endif
