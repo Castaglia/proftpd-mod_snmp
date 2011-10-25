@@ -229,6 +229,55 @@ This trace logging can generate large files; it is intended for debugging
 use only, and should be removed from any production configuration.
 
 <p>
+<b><code>mod_snmp</code> OIDs</b><br>
+<b>Note</b> that all <code>mod_snmp</code> OIDs begin with
+1.3.6.1.4.1.17852.2.2.  The <code>ProFTPD</code> column in the table below
+contains the ProFTPD versions where the OID is present.
+
+<p>
+<table border=1>
+  <tr>
+    <td>&nbsp;<b>OID<b>&nbsp;</td>
+    <td>&nbsp;<b>Name<b>&nbsp;</td>
+    <td>&nbsp;<b>Type<b>&nbsp;</td>
+    <td>&nbsp;<b><code>ProFTPD</code><b>&nbsp;</td>
+    <td>&nbsp;<b>Description<b>&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.1.1.0&nbsp;</td>
+    <td>&nbsp;daemon.software&nbsp;</td>
+    <td>&nbsp;STRING&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Always &quot;proftpd&quot;&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.1.2.0&nbsp;</td>
+    <td>&nbsp;daemon.version&nbsp;</td>
+    <td>&nbsp;STRING&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Version of <code>proftpd</code>&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.1.3.0&nbsp;</td>
+    <td>&nbsp;daemon.admin&nbsp;</td>
+    <td>&nbsp;STRING&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Administrative contact, <i>i.e.</i> the <code>ServerAdmin</code>&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.1.4.0&nbsp;</td>
+    <td>&nbsp;daemon.uptime&nbsp;</td>
+    <td>&nbsp;TimeTicks&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Uptime of the <code>proftpd</code> daemon&nbsp;</td>
+  </tr>
+</table>
+
+<p>
 <b>SNMP MIB</b><br>
 The MIB provided for <code>proftpd</code> is distributed with the
 <code>mod_snmp</code> module source code, and will be installed by default.
@@ -244,6 +293,44 @@ according to need, demand, inclination, and time:
   <li>SNMPv3 support
   <li>Controls support (<i>e.g.</i> for "ftpdctl snmp" action)
 </ul>
+
+<p><a name="FAQ">
+<b>Frequently Asked Questions</b></a><br>
+<font color=red>Question</font>: How can I query the <code>mod_snmp</code>
+Agent process?<br>
+<font color=blue>Answer</font>: You can test if your <code>proftpd</code>
+supports SNMP with the <code>snmpwalk</code> program (<code>snmpwalk</code> is
+a part of the <a href="http://net-snmp.sourceforge.net">Net-SNMP</code></a>
+project). Note that you have to specify the SNMP port, which in
+<code>mod_snmp</code> is configured via the
+<a href="#SNMPAgent"><code>SNMPAgent</code></a> directive.
+
+<p>
+For example, you might try:
+<pre>
+  # snmpwalk -m /path/to/PROFTPD-MIB.txt -v2c -Cc -c communitystring hostname:161 .1.3.6.1.4.1.17852.2.2
+</pre>
+If it gives output like:
+<pre>
+  enterprises.proftpd.modules.snmp.daemon.software = proftpd
+  enterprises.proftpd.modules.snmp.daemon.version = ProFTPD 1.3.4rc3
+  enterprises.proftpd.modules.snmp.daemon.admin = root@127.0.0.1
+</pre>
+or
+<pre>
+  PROFTPD-MIB::software.0 = String: proftpd
+  PROFTPD-MIB::version.0 = STRING: ProFTPD 1.3.4rc3
+  PROFTPD-MIB::admin.0 = STRING: "root@127.0.0.1"
+</pre>
+or
+<pre>
+  SNMPv2-SMI::enterprises.17852.2.2.1.1.0 = STRING: "proftpd"
+  SNMPv2-SMI::enterprises.17852.2.2.1.2.0 = STRING: "ProFTPD 1.3.4rc3"
+  SNMPv2-SMI::enterprises.17852.2.2.1.3.0 = STRING: "root@127.0.0.1"
+</pre>
+then your <code>proftpd</code> was compiled with the <code>mod_snmp</code>
+module and it is working properly; you should be able to make nice statistics
+out of it.
 
 <p>
 <hr><br>
