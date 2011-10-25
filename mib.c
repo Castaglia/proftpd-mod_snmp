@@ -321,8 +321,60 @@ static struct snmp_mib snmp_mibs[] = {
 /* We only need to look this up once. */
 static int snmp_mib_max_idx = -1;
 
+int snmp_mib_get_nearest_idx(oid_t *mib_oid, unsigned int mib_oidlen) {
+  register unsigned int i;
+  int mib_idx = -1;
+
+  /* In this case, the caller is requesting that we treat the given OID
+   * as not being specific enough, e.g. not having an instance identifier.
+   *
+   * This is done to handle the case where we received e.g.
+   * "GetNext 1.2.3", and the next OID is "1.2.3.0".  Or when we
+   * receive a "GetNext proftpd-arc" request from snmpwalk.
+   *
+   * If we find a match, we return the index of the matching entry.
+   */
+
+  /* First, make sure the requested OID is within the proftpd arc. */
+  if (mib_oidlen >= (SNMP_OID_BASELEN - 2)) {
+
+    /* First, look for OIDs which are at the level of 'proftpd.modules.snmp',
+     * then for 'proftpd.modules', then just 'proftpd'.  These we can handle
+     * by treating the "next" OID as the first index.
+     */
+    if (mib_oidlen <= SNMP_OID_BASELEN) {
+      oid_t base_oid[] = { SNMP_OID_BASE };
+
+      for (i = 0; i <= 2; i++) {
+        if (memcmp(base_oid, mib_oid, (SNMP_OID_BASELEN - i) *
+              sizeof(oid_t)) == 0) {
+          mib_idx = 1;
+          break;
+        }
+      }
+
+    } else {
+      for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
+        if (snmp_mibs[i].mib_oidlen == (mib_oidlen + 1)) {
+          if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
+              mib_oidlen * sizeof(oid_t)) == 0) {
+            mib_idx = i;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (mib_idx < 0) {
+    errno = ENOENT;
+  }
+
+  return mib_idx;
+}
+
 int snmp_mib_get_idx(oid_t *mib_oid, unsigned int mib_oidlen,
-    int *lacks_instance_id, int flags) {
+    int *lacks_instance_id) {
   register unsigned int i;
   int mib_idx = -1;
 
@@ -330,55 +382,30 @@ int snmp_mib_get_idx(oid_t *mib_oid, unsigned int mib_oidlen,
     *lacks_instance_id = FALSE;
   }
 
-  if (flags & SNMP_MIB_LOOKUP_FL_NO_INSTANCE_ID) {
-    /* In this case, the caller is requesting that we treat the given OID
-     * as not having an instance identifier.
-     *
-     * This is done to handle the case where we received e.g.
-     * "GetNext 1.2.3", and the next OID is "1.2.3.0".
-     *
-     * If we find a match, we return the index of the matching entry.
-     */
+  for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
+    pr_signals_handle();
 
-    for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
-      if (snmp_mibs[i].mib_oidlen == (mib_oidlen + 1)) {
-        if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
-            mib_oidlen * sizeof(oid_t)) == 0) {
-          mib_idx = i;
-
-          if (lacks_instance_id != NULL) {
-            *lacks_instance_id = TRUE;
-          }
-
-          break;
-        }
+    if (snmp_mibs[i].mib_oidlen == mib_oidlen) {
+      if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
+          mib_oidlen * sizeof(oid_t)) == 0) {
+        mib_idx = i;
+        break;
       }
     }
 
-  } else {
-    for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
-      if (snmp_mibs[i].mib_oidlen == mib_oidlen) {
-        if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
-            mib_oidlen * sizeof(oid_t)) == 0) {
-          mib_idx = i;
-          break;
+    /* Check for the case where the given OID might be missing the final
+     * ".0" instance identifier.  This is done to support the slightly
+     * more user-friendly NO_SUCH_INSTANCE exception for SNMPv2/SNMPv3
+     * responses.
+     */
+    if (snmp_mibs[i].mib_oidlen == (mib_oidlen + 1)) {
+      if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
+          mib_oidlen * sizeof(oid_t)) == 0) {
+        if (lacks_instance_id != NULL) {
+          *lacks_instance_id = TRUE;
         }
-      }
 
-      /* Check for the case where the given OID might be missing the final
-       * ".0" instance identifier.  This is done to support the slightly
-       * more user-friendly NO_SUCH_INSTANCE exception for SNMPv2/SNMPv3
-       * responses.
-       */
-      if (snmp_mibs[i].mib_oidlen == (mib_oidlen + 1)) {
-        if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
-            mib_oidlen * sizeof(oid_t)) == 0) {
-          if (lacks_instance_id != NULL) {
-            *lacks_instance_id = TRUE;
-          }
-
-          break;
-        }
+        break;
       }
     }
   }
@@ -420,7 +447,7 @@ struct snmp_mib *snmp_mib_get_by_oid(oid_t *mib_oid, unsigned int mib_oidlen,
     int *lacks_instance_id) {
   int mib_idx;
 
-  mib_idx = snmp_mib_get_idx(mib_oid, mib_oidlen, lacks_instance_id, 0);
+  mib_idx = snmp_mib_get_idx(mib_oid, mib_oidlen, lacks_instance_id);
   if (mib_idx < 0) {
     return NULL;
   }

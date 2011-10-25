@@ -259,14 +259,12 @@ struct snmp_mib {
   unsigned char smi_type;
 };
 
-/* API flags */
-#define SNMP_MIB_LOOKUP_FL_NO_INSTANCE_ID	0x01
-
 struct snmp_mib *snmp_mib_get_by_idx(unsigned int mib_idx);
 struct snmp_mib *snmp_mib_get_by_oid(oid_t *mib_oid, unsigned int mib_oidlen,
   int *lacks_instance_id);
 int snmp_mib_get_idx(oid_t *mib_oid, unsigned int mib_oidlen,
-  int *lacks_instance_id, int flags);
+  int *lacks_instance_id);
+int snmp_mib_get_nearest_idx(oid_t *mib_oid, unsigned int mib_oidlen);
 
 /* Returns the highest valid MIB index.  Why is this a runtime function,
  * rather than a compile-time constant?  Because of the conditional nature
