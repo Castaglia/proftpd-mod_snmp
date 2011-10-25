@@ -313,19 +313,19 @@ For example, you might try:
 If it gives output like:
 <pre>
   enterprises.proftpd.modules.snmp.daemon.software = proftpd
-  enterprises.proftpd.modules.snmp.daemon.version = ProFTPD 1.3.4rc3
+  enterprises.proftpd.modules.snmp.daemon.softwareVersion = ProFTPD Version 1.3.4rc4 (built at Sat Oct 22 2011 11:50:38 PDT)
   enterprises.proftpd.modules.snmp.daemon.admin = root@127.0.0.1
 </pre>
 or
 <pre>
   PROFTPD-MIB::software.0 = String: proftpd
-  PROFTPD-MIB::version.0 = STRING: ProFTPD 1.3.4rc3
-  PROFTPD-MIB::admin.0 = STRING: "root@127.0.0.1"
+  PROFTPD-MIB::softwareVersion.0 = STRING: ProFTPD Version 1.3.4rc4 (built at Sat Oct 22 2011 11:50:38 PDT)
+  PROFTPD-MIB::admin.0 = STRING: root@127.0.0.1
 </pre>
 or
 <pre>
   SNMPv2-SMI::enterprises.17852.2.2.1.1.0 = STRING: "proftpd"
-  SNMPv2-SMI::enterprises.17852.2.2.1.2.0 = STRING: "ProFTPD 1.3.4rc3"
+  SNMPv2-SMI::enterprises.17852.2.2.1.2.0 = STRING: "ProFTPD Version 1.3.4rc4 (built at Sat Oct 22 2011 11:50:38 PDT)"
   SNMPv2-SMI::enterprises.17852.2.2.1.3.0 = STRING: "root@127.0.0.1"
 </pre>
 then your <code>proftpd</code> was compiled with the <code>mod_snmp</code>
