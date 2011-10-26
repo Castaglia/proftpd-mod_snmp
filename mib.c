@@ -486,6 +486,18 @@ int snmp_mib_reset_counters(void) {
   for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
     pr_signals_handle();
 
+    /* Explicitly skip the restart counter; that's the one counter that is
+     * preserved.
+     */
+    if (snmp_mibs[i].mib_oidlen == SNMP_MIB_DAEMON_OIDLEN_RESTART_COUNT) {
+      oid_t restart_oid[] = { SNMP_MIB_DAEMON_OID_RESTART_COUNT };
+
+      if (memcmp(snmp_mibs[i].mib_oid, restart_oid,
+          SNMP_MIB_DAEMON_OIDLEN_RESTART_COUNT * sizeof(oid_t)) == 0) {
+        continue;
+      }
+    }
+
     if (snmp_mibs[i].smi_type == SNMP_SMI_COUNTER32 ||
         snmp_mibs[i].smi_type == SNMP_SMI_COUNTER64) {
       (void) snmp_db_reset_value(snmp_mibs[i].db_field);
