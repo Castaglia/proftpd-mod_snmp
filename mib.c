@@ -423,14 +423,14 @@ int snmp_mib_get_idx(oid_t *mib_oid, unsigned int mib_oidlen,
      * more user-friendly NO_SUCH_INSTANCE exception for SNMPv2/SNMPv3
      * responses.
      */
-    if (snmp_mibs[i].mib_oidlen == (mib_oidlen + 1)) {
-      if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
-          mib_oidlen * sizeof(oid_t)) == 0) {
-        if (lacks_instance_id != NULL) {
-          *lacks_instance_id = TRUE;
-        }
 
-        break;
+    if (lacks_instance_id != NULL) {
+      if (snmp_mibs[i].mib_oidlen == (mib_oidlen + 1)) {
+        if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
+            mib_oidlen * sizeof(oid_t)) == 0) {
+          *lacks_instance_id = TRUE;
+          break;
+        }
       }
     }
   }
