@@ -115,7 +115,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of refused connections from clients "
-        ::= { daemon 7 }
+        ::= { daemon 8 }
 
         restartCount OBJECT-TYPE
             SYNTAX Counter32
