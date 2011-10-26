@@ -354,13 +354,38 @@ int snmp_mib_get_nearest_idx(oid_t *mib_oid, unsigned int mib_oidlen) {
       }
 
     } else {
+      /* In this case, the OID being looked up is longer than SNMP_OID_BASELEN,
+       * yet still might be too "short" to exactly match a defined OID.  So
+       * we still need to look for partial prefix matches, e.g.
+       * 1.3.6.1.4.1.17852.2.2.2, and Do The Right Thing(tm).
+       */
       for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
-        if (snmp_mibs[i].mib_oidlen == (mib_oidlen + 1)) {
+        register unsigned int j;
+        unsigned int nsubids, oidlen;
+        int prefix_matched = FALSE;
+
+        pr_signals_handle();
+
+        if (mib_oidlen > snmp_mibs[i].mib_oidlen) {
+          nsubids = mib_oidlen - snmp_mibs[i].mib_oidlen;
+          oidlen = mib_oidlen;
+
+        } else {
+          nsubids = snmp_mibs[i].mib_oidlen - mib_oidlen;
+          oidlen = snmp_mibs[i].mib_oidlen;
+        }
+
+        for (j = 0; j <= nsubids; j++) {
           if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
-              mib_oidlen * sizeof(oid_t)) == 0) {
+              (oidlen - j) * sizeof(oid_t)) == 0) {
             mib_idx = i;
+            prefix_matched = TRUE;
             break;
           }
+        }
+
+        if (prefix_matched) {
+          break;
         }
       }
     }
