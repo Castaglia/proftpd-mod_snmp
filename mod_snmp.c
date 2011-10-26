@@ -709,11 +709,12 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
          */
 
         oidlen = iter_var->namelen + 1;
-        oid = pcalloc(pkt->pool, oidlen);
-        memcpy(oid, iter_var->name, iter_var->namelen);
+        oid = pcalloc(pkt->pool, oidlen * sizeof(oid_t));
+        memcpy(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
 
         mib_idx = snmp_mib_get_idx(oid, oidlen, NULL);
         if (mib_idx < 0) {
+          lacks_instance_id = FALSE;
           unknown_oid = TRUE;
 
         } else {
@@ -922,17 +923,18 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
         oid_t *oid;
         unsigned int oidlen;
 
-        /* For GetNextRequest-PDUs, a request for "A", without instance
+        /* For GetBulkRequest-PDUs, a request for "A", without instance
          * identifier, gets the response of "A.0", since "A" comes before
          * "A.0".  (This does not hold true for GetRequest-PDUs.)
          */
 
         oidlen = iter_var->namelen + 1;
-        oid = pcalloc(pkt->pool, oidlen);
-        memcpy(oid, iter_var->name, iter_var->namelen);
+        oid = pcalloc(pkt->pool, oidlen * sizeof(oid_t));
+        memcpy(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
 
         mib_idx = snmp_mib_get_idx(oid, oidlen, NULL);
         if (mib_idx < 0) {
+          lacks_instance_id = FALSE;
           unknown_oid = TRUE;
 
         } else {
@@ -1036,16 +1038,21 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
           iter_var->namelen));
 
       if (lacks_instance_id) {
-        /* For GetNextRequest-PDUs, a request for "A", without instance
+        oid_t *oid;
+        unsigned int oidlen;
+
+        /* For GetBulkRequest-PDUs, a request for "A", without instance
          * identifier, gets the response of "A.0", since "A" comes before
          * "A.0".  (This does not hold true for GetRequest-PDUs.)
-         *
-         * So try to find the "nearest" OID (it's probably the same OID
-         * with the ".0" sub-identifier appended), and return that index.
          */
 
-        mib_idx = snmp_mib_get_nearest_idx(iter_var->name, iter_var->namelen);
+        oidlen = iter_var->namelen + 1;
+        oid = pcalloc(pkt->pool, oidlen * sizeof(oid_t));
+        memcpy(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
+
+        mib_idx = snmp_mib_get_idx(oid, oidlen, NULL);
         if (mib_idx < 0) {
+          lacks_instance_id = FALSE;
           unknown_oid = TRUE;
 
         } else {
@@ -1053,7 +1060,14 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
         }
 
       } else {
-        unknown_oid = TRUE;
+        /* Try to find the "nearest" OID. */
+        mib_idx = snmp_mib_get_nearest_idx(iter_var->name, iter_var->namelen);
+        if (mib_idx < 0) {
+          unknown_oid = TRUE;
+
+        } else {
+          mib_idx--;
+        }
       }
 
       if (unknown_oid) {
