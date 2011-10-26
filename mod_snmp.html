@@ -168,6 +168,18 @@ Then follow the usual steps:
 <p>
 
 <p>
+<b>Important Security Considerations</b><br>
+Do <b>not</b> configure <code>mod_snmp</code> to listen on a public Internet
+address.  The information provided via <code>mod_snmp</code> can be used
+by attackers to gain more information about your running, including being
+able to determine whether their logins fail due to a wrong password (in
+which case, they know that that user name is valid) or not.  It is <b>highly
+recommended</b> that you configure <code>mod_snmp</code> to only listen
+on internal/LAN addresses.  Furthermore, you should employ a firewall rule
+that <b>rejects</b> any UDP packets from the public Internet to your
+<code>proftpd</code> instance.
+
+<p>
 <b>Example Configuration</b><br>
 The <code>mod_snmp</code> module uses a UDP socket for listening for SNMP
 requests.  Thus it does not require any separate
@@ -274,6 +286,278 @@ contains the ProFTPD versions where the OID is present.
     <td>&nbsp;TimeTicks&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
     <td>&nbsp;Uptime of the <code>proftpd</code> daemon&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.1.5.0&nbsp;</td>
+    <td>&nbsp;daemon.vhostCount&nbsp;</td>
+    <td>&nbsp;INTEGER&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Number of vhosts (including "server config") configured&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.1.6.0&nbsp;</td>
+    <td>&nbsp;daemon.connectionCount&nbsp;</td>
+    <td>&nbsp;Gauge32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Number of current connections&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.1.7.0&nbsp;</td>
+    <td>&nbsp;daemon.connectionTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of connections since daemon started&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.1.8.0&nbsp;</td>
+    <td>&nbsp;daemon.connectionRefusedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of connections <b>refused</b>&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.1.9.0&nbsp;</td>
+    <td>&nbsp;daemon.restartCount&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of times daemon has been restarted&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.1.10.0&nbsp;</td>
+    <td>&nbsp;daemon.segfaultCount&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of <code>SIGSEGV</code> occurrences&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.1.11.0&nbsp;</td>
+    <td>&nbsp;daemon.maxInstancesLimitCount&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of times <code>MaxInstances</code> reached&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.1.1.0&nbsp;</td>
+    <td>&nbsp;ftp.sessions.sessionCount&nbsp;</td>
+    <td>&nbsp;Gauge32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Number of current FTP sessions&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.1.2.0&nbsp;</td>
+    <td>&nbsp;ftp.sessions.sessionTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of FTP sessions handled&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.1.3.0&nbsp;</td>
+    <td>&nbsp;ftp.sessions.commandInvalidTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of invalid FTP commands received&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.2.1.0&nbsp;</td>
+    <td>&nbsp;ftp.logins.loginTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of successful FTP logins&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.2.2.0&nbsp;</td>
+    <td>&nbsp;ftp.logins.loginFailedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of <b>failed</b> FTP logins&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.2.3.0&nbsp;</td>
+    <td>&nbsp;ftp.logins.loginBadUserTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of failed FTP logins due to bad/wrong user name&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.2.4.0&nbsp;</td>
+    <td>&nbsp;ftp.logins.loginBadPasswordTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of failed FTP logins due to bad password&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.2.5.0&nbsp;</td>
+    <td>&nbsp;ftp.logins.loginGeneralErrorTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of failed FTP logins due to config/other issues&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.2.6.0&nbsp;</td>
+    <td>&nbsp;ftp.logins.anonLoginCount&nbsp;</td>
+    <td>&nbsp;Gauge32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Number of current anonymous FTP logins&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.2.7.0&nbsp;</td>
+    <td>&nbsp;ftp.logins.anonLoginTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of anonymous FTP logins&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.3.1.0&nbsp;</td>
+    <td>&nbsp;ftp.dataTransfers.dirListTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of directories listed via FTP&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.3.2.0&nbsp;</td>
+    <td>&nbsp;ftp.dataTransfers.dirListFailedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of directory list failures via FTP&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.3.3.0&nbsp;</td>
+    <td>&nbsp;ftp.dataTransfers.fileUploadTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of files uploaded via FTP&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.3.4.0&nbsp;</td>
+    <td>&nbsp;ftp.dataTransfers.fileUploadFailedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of file upload failures via FTP&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.3.5.0&nbsp;</td>
+    <td>&nbsp;ftp.dataTransfers.fileDownloadTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of files downloaded via FTP&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.3.6.0&nbsp;</td>
+    <td>&nbsp;ftp.dataTransfers.fileDownloadFailedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of file download failures via FTP&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.3.7.0&nbsp;</td>
+    <td>&nbsp;ftp.dataTransfers.kbUploadTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of KB uploaded via FTP&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.3.8.0&nbsp;</td>
+    <td>&nbsp;ftp.dataTransfers.kbDownloadTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of KB downloaded via FTP&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.4.1.0&nbsp;</td>
+    <td>&nbsp;ftp.timeouts.idleTimeoutTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of times TimeoutIdle was reached&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.4.2.0&nbsp;</td>
+    <td>&nbsp;ftp.timeouts.loginTimeoutTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of times TimeoutLogin was reached&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.4.3.0&nbsp;</td>
+    <td>&nbsp;ftp.timeouts.noTransferTimeoutTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of times TimeoutNoTransfer was reached&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.4.4.0&nbsp;</td>
+    <td>&nbsp;ftp.timeouts.stalledTimeoutTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of times TimeoutStalled was reached&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.3.1.0&nbsp;</td>
+    <td>&nbsp;snmp.packetsReceivedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of SNMP packets received&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.3.2.0&nbsp;</td>
+    <td>&nbsp;snmp.packetsSentTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of SNMP packets sent&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.3.3.0&nbsp;</td>
+    <td>&nbsp;snmp.trapsSentTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of SNMP traps/notifications sent&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.3.4.0&nbsp;</td>
+    <td>&nbsp;snmp.packetsAuthFailedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of SNMP packets failing authentication check&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.3.5.0&nbsp;</td>
+    <td>&nbsp;snmp.packetsDroppedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of SNMP packets dropped&nbsp;</td>
   </tr>
 </table>
 
