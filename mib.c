@@ -479,3 +479,18 @@ struct snmp_mib *snmp_mib_get_by_oid(oid_t *mib_oid, unsigned int mib_oidlen,
 
   return snmp_mib_get_by_idx(mib_idx); 
 }
+
+int snmp_mib_reset_counters(void) {
+  register unsigned int i;
+
+  for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
+    pr_signals_handle();
+
+    if (snmp_mibs[i].smi_type == SNMP_SMI_COUNTER32 ||
+        snmp_mibs[i].smi_type == SNMP_SMI_COUNTER64) {
+      (void) snmp_db_reset_value(snmp_mibs[i].db_field);
+    }
+  }
+
+  return 0;
+}

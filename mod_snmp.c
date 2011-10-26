@@ -1294,7 +1294,7 @@ static int snmp_agent_handle_packet(int sockfd) {
       "received %d UDP bytes from client in unknown class", nbytes);
   }
 
-  /* XXX Note: mod_ifsession does NOT affect mod_snmp ACLs; use <Limit SNMP> */
+  /* Note: mod_ifsession does NOT affect mod_snmp ACLs; use <Limit SNMP> */
 
   if (snmp_limits_allow(main_server->conf, pkt) == FALSE) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
@@ -2327,9 +2327,11 @@ static void snmp_restart_ev(const void *event_data, void *user_data) {
       strerror(errno));
   }
 
-  /* XXX Reset all of the Counter values.  To do this, create a separate
-   * snmp_counter_fields array.
-   */
+  res = snmp_mib_reset_counters();
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error resetting SNMP database counters: %s", strerror(errno));
+  }
 }
 
 static void snmp_shutdown_ev(const void *event_data, void *user_data) {

@@ -273,4 +273,7 @@ int snmp_mib_get_nearest_idx(oid_t *mib_oid, unsigned int mib_oidlen);
  */
 int snmp_mib_get_max_idx(void);
 
+/* Resets the counter values in the database, as per RFC recommendation. */
+int snmp_mib_reset_counters(void);
+
 #endif
