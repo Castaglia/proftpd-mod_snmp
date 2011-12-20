@@ -321,8 +321,85 @@ static struct snmp_mib snmp_mibs[] = {
 /* We only need to look this up once. */
 static int snmp_mib_max_idx = -1;
 
+int snmp_mib_get_nearest_idx(oid_t *mib_oid, unsigned int mib_oidlen) {
+  register unsigned int i;
+  int mib_idx = -1;
+
+  /* In this case, the caller is requesting that we treat the given OID
+   * as not being specific enough, e.g. not having an instance identifier.
+   *
+   * This is done to handle the case where we received e.g.
+   * "GetNext 1.2.3", and the next OID is "1.2.3.0".  Or when we
+   * receive a "GetNext proftpd-arc" request from snmpwalk.
+   *
+   * If we find a match, we return the index of the matching entry.
+   */
+
+  /* First, make sure the requested OID is within the proftpd arc. */
+  if (mib_oidlen >= (SNMP_OID_BASELEN - 2)) {
+
+    /* First, look for OIDs which are at the level of 'proftpd.modules.snmp',
+     * then for 'proftpd.modules', then just 'proftpd'.  These we can handle
+     * by treating the "next" OID as the first index.
+     */
+    if (mib_oidlen <= SNMP_OID_BASELEN) {
+      oid_t base_oid[] = { SNMP_OID_BASE };
+
+      for (i = 0; i <= 2; i++) {
+        if (memcmp(base_oid, mib_oid, (SNMP_OID_BASELEN - i) *
+              sizeof(oid_t)) == 0) {
+          mib_idx = 1;
+          break;
+        }
+      }
+
+    } else {
+      /* In this case, the OID being looked up is longer than SNMP_OID_BASELEN,
+       * yet still might be too "short" to exactly match a defined OID.  So
+       * we still need to look for partial prefix matches, e.g.
+       * 1.3.6.1.4.1.17852.2.2.2, and Do The Right Thing(tm).
+       */
+      for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
+        register unsigned int j;
+        unsigned int nsubids, oidlen;
+        int prefix_matched = FALSE;
+
+        pr_signals_handle();
+
+        if (mib_oidlen > snmp_mibs[i].mib_oidlen) {
+          nsubids = mib_oidlen - snmp_mibs[i].mib_oidlen;
+          oidlen = mib_oidlen;
+
+        } else {
+          nsubids = snmp_mibs[i].mib_oidlen - mib_oidlen;
+          oidlen = snmp_mibs[i].mib_oidlen;
+        }
+
+        for (j = 0; j <= nsubids; j++) {
+          if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
+              (oidlen - j) * sizeof(oid_t)) == 0) {
+            mib_idx = i;
+            prefix_matched = TRUE;
+            break;
+          }
+        }
+
+        if (prefix_matched) {
+          break;
+        }
+      }
+    }
+  }
+
+  if (mib_idx < 0) {
+    errno = ENOENT;
+  }
+
+  return mib_idx;
+}
+
 int snmp_mib_get_idx(oid_t *mib_oid, unsigned int mib_oidlen,
-    int *lacks_instance_id, int flags) {
+    int *lacks_instance_id) {
   register unsigned int i;
   int mib_idx = -1;
 
@@ -330,53 +407,28 @@ int snmp_mib_get_idx(oid_t *mib_oid, unsigned int mib_oidlen,
     *lacks_instance_id = FALSE;
   }
 
-  if (flags & SNMP_MIB_LOOKUP_FL_NO_INSTANCE_ID) {
-    /* In this case, the caller is requesting that we treat the given OID
-     * as not having an instance identifier.
-     *
-     * This is done to handle the case where we received e.g.
-     * "GetNext 1.2.3", and the next OID is "1.2.3.0".
-     *
-     * If we find a match, we return the index of the matching entry.
-     */
+  for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
+    pr_signals_handle();
 
-    for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
-      if (snmp_mibs[i].mib_oidlen == (mib_oidlen + 1)) {
-        if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
-            mib_oidlen * sizeof(oid_t)) == 0) {
-          mib_idx = i;
-
-          if (lacks_instance_id != NULL) {
-            *lacks_instance_id = TRUE;
-          }
-
-          break;
-        }
+    if (snmp_mibs[i].mib_oidlen == mib_oidlen) {
+      if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
+          mib_oidlen * sizeof(oid_t)) == 0) {
+        mib_idx = i;
+        break;
       }
     }
 
-  } else {
-    for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
-      if (snmp_mibs[i].mib_oidlen == mib_oidlen) {
-        if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
-            mib_oidlen * sizeof(oid_t)) == 0) {
-          mib_idx = i;
-          break;
-        }
-      }
+    /* Check for the case where the given OID might be missing the final
+     * ".0" instance identifier.  This is done to support the slightly
+     * more user-friendly NO_SUCH_INSTANCE exception for SNMPv2/SNMPv3
+     * responses.
+     */
 
-      /* Check for the case where the given OID might be missing the final
-       * ".0" instance identifier.  This is done to support the slightly
-       * more user-friendly NO_SUCH_INSTANCE exception for SNMPv2/SNMPv3
-       * responses.
-       */
+    if (lacks_instance_id != NULL) {
       if (snmp_mibs[i].mib_oidlen == (mib_oidlen + 1)) {
         if (memcmp(snmp_mibs[i].mib_oid, mib_oid,
             mib_oidlen * sizeof(oid_t)) == 0) {
-          if (lacks_instance_id != NULL) {
-            *lacks_instance_id = TRUE;
-          }
-
+          *lacks_instance_id = TRUE;
           break;
         }
       }
@@ -420,10 +472,37 @@ struct snmp_mib *snmp_mib_get_by_oid(oid_t *mib_oid, unsigned int mib_oidlen,
     int *lacks_instance_id) {
   int mib_idx;
 
-  mib_idx = snmp_mib_get_idx(mib_oid, mib_oidlen, lacks_instance_id, 0);
+  mib_idx = snmp_mib_get_idx(mib_oid, mib_oidlen, lacks_instance_id);
   if (mib_idx < 0) {
     return NULL;
   }
 
   return snmp_mib_get_by_idx(mib_idx); 
+}
+
+int snmp_mib_reset_counters(void) {
+  register unsigned int i;
+
+  for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
+    pr_signals_handle();
+
+    /* Explicitly skip the restart counter; that's the one counter that is
+     * preserved.
+     */
+    if (snmp_mibs[i].mib_oidlen == SNMP_MIB_DAEMON_OIDLEN_RESTART_COUNT) {
+      oid_t restart_oid[] = { SNMP_MIB_DAEMON_OID_RESTART_COUNT };
+
+      if (memcmp(snmp_mibs[i].mib_oid, restart_oid,
+          SNMP_MIB_DAEMON_OIDLEN_RESTART_COUNT * sizeof(oid_t)) == 0) {
+        continue;
+      }
+    }
+
+    if (snmp_mibs[i].smi_type == SNMP_SMI_COUNTER32 ||
+        snmp_mibs[i].smi_type == SNMP_SMI_COUNTER64) {
+      (void) snmp_db_reset_value(snmp_mibs[i].db_field);
+    }
+  }
+
+  return 0;
 }

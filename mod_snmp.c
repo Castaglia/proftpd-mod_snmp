@@ -680,7 +680,7 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
   for (iter_var = pkt->req_pdu->varlist; iter_var; iter_var = iter_var->next) { 
     struct snmp_mib *mib = NULL;
     struct snmp_var *resp_var = NULL;
-    int flags = 0, mib_idx = -1, lacks_instance_id = FALSE;
+    int mib_idx = -1, lacks_instance_id = FALSE;
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
@@ -688,7 +688,7 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
     pr_signals_handle();
 
     mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
-      &lacks_instance_id, flags);
+      &lacks_instance_id);
     if (mib_idx < 0) {
       int unknown_oid = FALSE;
 
@@ -700,17 +700,21 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
           iter_var->namelen));
 
       if (lacks_instance_id) {
+        oid_t *oid;
+        unsigned int oidlen;
+
         /* For GetNextRequest-PDUs, a request for "A", without instance
          * identifier, gets the response of "A.0", since "A" comes before
          * "A.0".  (This does not hold true for GetRequest-PDUs.)
-         *
-         * So tack on the ".0" sub-identifier, and try the lookup again.
          */
 
-        flags = SNMP_MIB_LOOKUP_FL_NO_INSTANCE_ID;
-        mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
-          &lacks_instance_id, flags);
+        oidlen = iter_var->namelen + 1;
+        oid = pcalloc(pkt->pool, oidlen * sizeof(oid_t));
+        memcpy(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
+
+        mib_idx = snmp_mib_get_idx(oid, oidlen, NULL);
         if (mib_idx < 0) {
+          lacks_instance_id = FALSE;
           unknown_oid = TRUE;
 
         } else {
@@ -718,7 +722,14 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
         }
 
       } else {
-        unknown_oid = TRUE;
+        /* Try to find the "nearest" OID. */
+        mib_idx = snmp_mib_get_nearest_idx(iter_var->name, iter_var->namelen);
+        if (mib_idx < 0) {
+          unknown_oid = TRUE;
+
+        } else {
+          mib_idx--;
+        }
       }
 
       if (unknown_oid) {
@@ -889,7 +900,7 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
        i++, iter_var = iter_var->next) { 
     struct snmp_mib *mib = NULL;
     struct snmp_var *resp_var = NULL;
-    int flags = 0, mib_idx = -1, lacks_instance_id = FALSE;
+    int mib_idx = -1, lacks_instance_id = FALSE;
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
@@ -897,7 +908,7 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
     pr_signals_handle();
 
     mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
-      &lacks_instance_id, flags);
+      &lacks_instance_id);
     if (mib_idx < 0) {
       int unknown_oid = FALSE;
 
@@ -909,17 +920,21 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
           iter_var->namelen));
 
       if (lacks_instance_id) {
-        /* For GetNextRequest-PDUs, a request for "A", without instance
+        oid_t *oid;
+        unsigned int oidlen;
+
+        /* For GetBulkRequest-PDUs, a request for "A", without instance
          * identifier, gets the response of "A.0", since "A" comes before
          * "A.0".  (This does not hold true for GetRequest-PDUs.)
-         *
-         * So tack on the ".0" sub-identifier, and try the lookup again.
          */
 
-        flags = SNMP_MIB_LOOKUP_FL_NO_INSTANCE_ID;
-        mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
-          &lacks_instance_id, flags);
+        oidlen = iter_var->namelen + 1;
+        oid = pcalloc(pkt->pool, oidlen * sizeof(oid_t));
+        memcpy(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
+
+        mib_idx = snmp_mib_get_idx(oid, oidlen, NULL);
         if (mib_idx < 0) {
+          lacks_instance_id = FALSE;
           unknown_oid = TRUE;
 
         } else {
@@ -927,7 +942,14 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
         }
 
       } else {
-        unknown_oid = TRUE;
+        /* Try to find the "nearest" OID. */
+        mib_idx = snmp_mib_get_nearest_idx(iter_var->name, iter_var->namelen);
+        if (mib_idx < 0) {
+          unknown_oid = TRUE;
+
+        } else {
+          mib_idx--;
+        }
       }
 
       if (unknown_oid) {
@@ -998,13 +1020,13 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
     register unsigned int j;
     struct snmp_mib *mib = NULL;
     struct snmp_var *resp_var = NULL;
-    int flags = 0, mib_idx = -1, lacks_instance_id = FALSE;
+    int mib_idx = -1, lacks_instance_id = FALSE;
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
 
     mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
-      &lacks_instance_id, flags);
+      &lacks_instance_id);
     if (mib_idx < 0) {
       int unknown_oid = FALSE;
 
@@ -1016,17 +1038,21 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
           iter_var->namelen));
 
       if (lacks_instance_id) {
-        /* For GetNextRequest-PDUs, a request for "A", without instance
+        oid_t *oid;
+        unsigned int oidlen;
+
+        /* For GetBulkRequest-PDUs, a request for "A", without instance
          * identifier, gets the response of "A.0", since "A" comes before
          * "A.0".  (This does not hold true for GetRequest-PDUs.)
-         *
-         * So tack on the ".0" sub-identifier, and try the lookup again.
          */
 
-        flags = SNMP_MIB_LOOKUP_FL_NO_INSTANCE_ID;
-        mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
-          &lacks_instance_id, flags);
+        oidlen = iter_var->namelen + 1;
+        oid = pcalloc(pkt->pool, oidlen * sizeof(oid_t));
+        memcpy(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
+
+        mib_idx = snmp_mib_get_idx(oid, oidlen, NULL);
         if (mib_idx < 0) {
+          lacks_instance_id = FALSE;
           unknown_oid = TRUE;
 
         } else {
@@ -1034,7 +1060,14 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
         }
 
       } else {
-        unknown_oid = TRUE;
+        /* Try to find the "nearest" OID. */
+        mib_idx = snmp_mib_get_nearest_idx(iter_var->name, iter_var->namelen);
+        if (mib_idx < 0) {
+          unknown_oid = TRUE;
+
+        } else {
+          mib_idx--;
+        }
       }
 
       if (unknown_oid) {
@@ -1261,7 +1294,7 @@ static int snmp_agent_handle_packet(int sockfd) {
       "received %d UDP bytes from client in unknown class", nbytes);
   }
 
-  /* XXX Note: mod_ifsession does NOT affect mod_snmp ACLs; use <Limit SNMP> */
+  /* Note: mod_ifsession does NOT affect mod_snmp ACLs; use <Limit SNMP> */
 
   if (snmp_limits_allow(main_server->conf, pkt) == FALSE) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
@@ -2294,9 +2327,11 @@ static void snmp_restart_ev(const void *event_data, void *user_data) {
       strerror(errno));
   }
 
-  /* XXX Reset all of the Counter values.  To do this, create a separate
-   * snmp_counter_fields array.
-   */
+  res = snmp_mib_reset_counters();
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error resetting SNMP database counters: %s", strerror(errno));
+  }
 }
 
 static void snmp_shutdown_ev(const void *event_data, void *user_data) {
