@@ -1335,14 +1335,14 @@ static int snmp_agent_handle_packet(int sockfd) {
     return -1;
   }
 
-  /* XXX Do we really need a timeout, after which we drop this response? */
-  tv.tv_sec = 15;
-  tv.tv_usec = 0;
-
   FD_ZERO(&writefds);
   FD_SET(sockfd, &writefds);
 
   while (TRUE) {
+    /* XXX Do we really need a timeout, after which we drop this response? */
+    tv.tv_sec = 15;
+    tv.tv_usec = 0;
+
     res = select(sockfd + 1, NULL, &writefds, NULL, &tv);
     if (res < 0) {
       if (errno == EINTR) {
@@ -1438,14 +1438,14 @@ static void snmp_agent_loop(int sockfd) {
   struct timeval tv;
   int res;
 
-  /* XXX Is it necessary to even have a timeout?  We could simply block
-   * in select(2) indefinitely, until either an event arrives or we are
-   * interrupted by a signal.
-   */
-  tv.tv_sec = 60;
-  tv.tv_usec = 0L;
-
   while (TRUE) {
+    /* XXX Is it necessary to even have a timeout?  We could simply block
+     * in select(2) indefinitely, until either an event arrives or we are
+     * interrupted by a signal.
+     */
+    tv.tv_sec = 60;
+    tv.tv_usec = 0L;
+
     FD_ZERO(&listenfds);
     FD_SET(sockfd, &listenfds);
 
