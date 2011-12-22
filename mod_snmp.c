@@ -92,7 +92,11 @@ static int snmp_check_class_access(xaset_t *set, const char *name,
    * class as an argument.
    */
 
+#if PROFTPD_VERSION_NUMBER >= 0x0001030501
+  session.conn_class = pkt->remote_class;
+#else
   session.class = pkt->remote_class;
+#endif /* ProFTPD-1.3.5rc1 and later */
 
   c = find_config(set, CONF_PARAM, name, FALSE);
   while (c) {
@@ -126,7 +130,12 @@ static int snmp_check_class_access(xaset_t *set, const char *name,
     c = find_config_next(c, c->next, CONF_PARAM, name, FALSE);
   }
 
+#if PROFTPD_VERSION_NUMBER >= 0x0001030501
+  session.conn_class = NULL;
+#else
   session.class = NULL;
+#endif /* ProFTPD-1.3.5rc1 and later */
+
   return ok;
 }
 
