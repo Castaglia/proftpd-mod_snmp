@@ -282,7 +282,8 @@ struct snmp_var *snmp_smi_dup_var(pool *p, struct snmp_var *src_var) {
       "cloned SMI variable %s", snmp_smi_get_varstr(p, iter_var->smi_type));
   }
 
-  pr_trace_msg(trace_channel, 19, "cloned %u SMI variables", var_count);
+  pr_trace_msg(trace_channel, 19, "cloned %u SMI %s", var_count,
+    var_count != 1 ? "variables" : "variable");
   return head_var;
 }
 
