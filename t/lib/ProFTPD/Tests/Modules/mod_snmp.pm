@@ -73,6 +73,12 @@ my $TESTS = {
     test_class => [qw(forking snmp)],
   },
 
+  # XXX Need unit tests for the ftp.sessions, ftp.logins, ftp.dataTransfers
+  snmp_v1_get_upload_counts => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
   snmp_v1_get_multi => {
     order => ++$order,
     test_class => [qw(forking snmp)],
@@ -199,6 +205,118 @@ sub list_tests {
 
   return testsuite_get_runnable_tests($TESTS);
 }
+
+# Support routines
+
+sub get_upload_info {
+  my $agent_port = shift;
+  my $snmp_community = shift;
+
+  my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+    -hostname => '127.0.0.1',
+    -port => $agent_port,
+    -version => 'snmpv1',
+    -community => $snmp_community,
+    -retries => 1,
+    -timeout => 3,
+    -translate => 1,
+  );
+  unless ($snmp_sess) {
+    die("Unable to create Net::SNMP session: $snmp_err");
+  }
+
+  if ($ENV{TEST_VERBOSE}) {
+    # From the Net::SNMP debug perldocs
+    my $debug_mask = (0x02|0x10|0x20);
+    $snmp_sess->debug($debug_mask);
+  }
+
+  # fileUploadTotal
+  my $upload_file_oid = '1.3.6.1.4.1.17852.2.2.2.3.3.0';
+
+  # kbUploadTotal
+  my $upload_kb_oid = '1.3.6.1.4.1.17852.2.2.2.3.7.0';
+
+  my $oids = [$upload_file_oid, $upload_kb_oid];
+
+  my $snmp_resp = $snmp_sess->get_request(
+    -varbindList => $oids,
+  );
+  unless ($snmp_resp) {
+    die("No SNMP response received: " . $snmp_sess->error());
+  }
+
+  my ($file_count, $kb_count);
+
+  # Do we have the requested OIDs in the response?
+
+  foreach my $oid (@$oids) {
+    unless (defined($snmp_resp->{$oid})) {
+      die("Missing required OID $oid in response");
+    }
+
+    my $value = $snmp_resp->{$oid};
+    if ($ENV{TEST_VERBOSE}) {
+      print STDERR "Requested OID $oid = $value\n";
+    }
+
+    if ($oid eq $upload_file_oid) {
+      $file_count = $value;
+
+    } elsif ($oid eq $upload_kb_oid) {
+      $kb_count = $value;
+    }
+  }
+
+  $snmp_sess->close();
+  $snmp_sess = undef;
+
+  return ($file_count, $kb_count);
+}
+
+sub upload_file {
+  my $port = shift;
+  my $user = shift;
+  my $passwd = shift;
+  my $file_path = shift;
+  my $file_kb_len = shift;
+
+  my $client = ProFTPD::TestSuite::FTP->new('127.0.0.1', $port);
+
+  $client->login($user, $passwd);
+
+  my $conn = $client->stor_raw($file_path);
+  unless ($conn) {
+    die("Failed to STOR: " . $client->response_code() . " " .
+      $client->response_msg());
+  }
+
+  my $buf = ("A" x ($file_kb_len * 1024));
+  $conn->write($buf, length($buf), 25);
+  eval { $conn->close() };
+
+  my ($resp_code, $resp_msg);
+  $resp_code = $client->response_code();
+  $resp_msg = $client->response_msg();
+
+  $client->quit();
+  $client = undef;
+
+  my $expected;
+  $expected = 226;
+  unless ($expected == $resp_code) {
+    die("Unexpected response code $resp_code (expected $expected)");
+  }
+
+  $expected = "Transfer complete";
+  unless ($expected eq $resp_msg) {
+    die("Unexpected response message $resp_msg (expected $expected)");
+  }
+
+  return 1;
+}
+
+# Test cases
 
 sub snmp_v1_get_unknown {
   my $self = shift;
@@ -1978,6 +2096,183 @@ sub snmp_v1_get_daemon_maxinsts_count {
 
   } else {
     eval { server_wait($config_file, $rfh) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_upload_counts {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = File::Spec->rel2abs('tests.log');
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $timeout_idle = 45;
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+    TimeoutIdle => $timeout_idle + 1,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my $expected;
+
+      # First, get the upload count/KB
+      my ($file_count, $kb_count) = get_upload_info($agent_port,
+        $snmp_community);
+
+      $expected = 0;
+      $self->assert($file_count == $expected,
+        test_msg("Expected upload file count $expected, got $file_count"));
+
+      $expected = 0;
+      $self->assert($kb_count == $expected,
+        test_msg("Expected upload KB count $expected, got $kb_count"));
+
+      # Next, upload a file
+      my $file_path = 'test1.txt';
+      my $file_kb_len = 4;
+      upload_file($port, $user, $passwd, $file_path, $file_kb_len);
+
+      # Then, get the upload count/KB again
+      ($file_count, $kb_count) = get_upload_info($agent_port, $snmp_community);
+
+      $expected = 1;
+      $self->assert($file_count == $expected,
+        test_msg("Expected upload file count $expected, got $file_count"));
+
+      $expected = $file_kb_len;
+      $self->assert($kb_count == $expected,
+        test_msg("Expected upload KB count $expected, got $kb_count"));
+
+      # Upload another file
+      $file_path = 'test2.txt';
+      upload_file($port, $user, $passwd, $file_path, $file_kb_len);
+
+      # Get the upload count/KB one more time, make sure it's what we expect
+      ($file_count, $kb_count) = get_upload_info($agent_port, $snmp_community);
+
+      $expected = 2;
+      $self->assert($file_count == $expected,
+        test_msg("Expected upload file count $expected, got $file_count"));
+
+      $expected = ($file_kb_len * 2);
+      $self->assert($kb_count == $expected,
+        test_msg("Expected upload KB count $expected, got $kb_count"));
+
+      # Now wait for 5 secs, then try again (make sure the counters aren't
+      # reset somehow on the server's side).
+      sleep(5);
+
+      ($file_count, $kb_count) = get_upload_info($agent_port, $snmp_community);
+
+      $expected = 2;
+      $self->assert($file_count == $expected,
+        test_msg("Expected upload file count $expected, got $file_count"));
+
+      $expected = ($file_kb_len * 2);
+      $self->assert($kb_count == $expected,
+        test_msg("Expected upload KB count $expected, got $kb_count"));
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh, $timeout_idle) };
     if ($@) {
       warn($@);
       exit 1;
