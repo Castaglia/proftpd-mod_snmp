@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -2336,6 +2336,7 @@ static void snmp_restart_ev(const void *event_data, void *user_data) {
       strerror(errno));
   }
 
+  pr_trace_msg(trace_channel, 17, "restart event received, resetting counters");
   res = snmp_mib_reset_counters();
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,

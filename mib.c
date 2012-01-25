@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp MIB support
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -321,6 +321,8 @@ static struct snmp_mib snmp_mibs[] = {
 /* We only need to look this up once. */
 static int snmp_mib_max_idx = -1;
 
+static const char *trace_channel = "snmp-mib";
+
 int snmp_mib_get_nearest_idx(oid_t *mib_oid, unsigned int mib_oidlen) {
   register unsigned int i;
   int mib_idx = -1;
@@ -500,6 +502,8 @@ int snmp_mib_reset_counters(void) {
 
     if (snmp_mibs[i].smi_type == SNMP_SMI_COUNTER32 ||
         snmp_mibs[i].smi_type == SNMP_SMI_COUNTER64) {
+      pr_trace_msg(trace_channel, 17, "resetting '%s' counter",
+        snmp_mibs[i].instance_name);
       (void) snmp_db_reset_value(snmp_mibs[i].db_field);
     }
   }
