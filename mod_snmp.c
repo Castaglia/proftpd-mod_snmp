@@ -1566,14 +1566,54 @@ static pid_t snmp_agent_start(const char *tables_dir, int agent_type,
     "SNMP agent process listening on UDP %s#%u",
     pr_netaddr_get_ipstr(agent_addr), ntohs(pr_netaddr_get_port(agent_addr)));
 
-  /* XXX Should we chroot the SNMP agent process before dropping root privs?
-   * Would be a good idea; maybe to the SNMPTables directory?
-   */
-
   PRIVS_ROOT
+
+  if (getuid() == PR_ROOT_UID) {
+    int res;
+
+    /* Chroot to the SNMPTables directory before dropping root privs.
+     *
+     * XXX Make sure that the actual table files have permissions such
+     * that the non-privileged user cannot modify them easily.
+     */
+
+    res = chroot(tables_dir);
+    if (res < 0) {
+      int xerrno = errno;
+
+      PRIVS_RELINQUISH
+ 
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "unable to chroot to SNMPTables directory '%s': %s", tables_dir,
+        strerror(xerrno));
+      exit(0);
+    }
+
+    if (chdir("/") < 0) {
+      int xerrno = errno;
+
+      PRIVS_RELINQUISH
+
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "unable to chdir to root directory within chroot: %s",
+        strerror(xerrno));
+      exit(0);
+    }
+  }
+
   pr_proctitle_set("(listening for SNMP packets)");
 
+  /* Make the SNMP process have the identity of the configured daemon
+   * User/Group.
+   */
+  session.uid = geteuid();
+  session.gid = getegid();
   PRIVS_REVOKE
+
+  (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+    "SNMP agent process running with UID %lu, GID %lu, restricted to '%s'",
+    (unsigned long) getuid(), (unsigned long) getgid(), getcwd(NULL, 0));
+
   snmp_agent_loop(agent_fd);
 
   /* When we are done, we simply exit. */;
