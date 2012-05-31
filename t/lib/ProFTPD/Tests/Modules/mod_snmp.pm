@@ -363,7 +363,7 @@ sub snmp_v1_get_unknown {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -520,7 +520,7 @@ sub snmp_v1_get_wrong_community {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -684,7 +684,7 @@ sub snmp_v1_get_daemon_software {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -851,7 +851,7 @@ sub snmp_v1_get_daemon_version {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -1018,7 +1018,7 @@ sub snmp_v1_get_daemon_admin {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -1187,7 +1187,7 @@ sub snmp_v1_get_daemon_admin_with_config {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -1356,7 +1356,7 @@ sub snmp_v1_get_daemon_uptime {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -1526,7 +1526,7 @@ sub snmp_v1_get_daemon_vhost_count {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -1693,7 +1693,7 @@ sub snmp_v1_get_daemon_restart_count {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -1860,7 +1860,7 @@ sub snmp_v1_get_daemon_segfault_count {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -2027,7 +2027,7 @@ sub snmp_v1_get_daemon_maxinsts_count {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -2194,7 +2194,7 @@ sub snmp_v1_get_upload_counts {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -2382,7 +2382,7 @@ sub snmp_v1_get_multi {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -2552,7 +2552,7 @@ sub snmp_v1_get_multi_with_unknown {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -2708,7 +2708,7 @@ sub snmp_v1_get_next {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -2872,11 +2872,11 @@ sub snmp_v1_get_next_unknown {
   my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
   my $snmp_community = "public";
 
-  my $request_oid = '1.3.6.1.4.1.17852.1.0';
+  my $request_oid = '1.3.6.1.4.1.17852.999.0.1';
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -3034,7 +3034,7 @@ sub snmp_v1_get_next_missing_instance_id {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -3201,7 +3201,7 @@ sub snmp_v1_get_next_end_of_mib_view {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -3366,7 +3366,7 @@ sub snmp_v1_get_next_multi {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -3536,7 +3536,7 @@ sub snmp_v1_get_next_multi_with_unknown {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -3691,7 +3691,7 @@ sub snmp_v1_set {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -3848,7 +3848,7 @@ sub snmp_v1_trap {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -4005,7 +4005,7 @@ sub snmp_v2_get_unknown {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -4172,7 +4172,7 @@ sub snmp_v2_get_missing_instance_id {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -4339,7 +4339,7 @@ sub snmp_v2_get_next_end_of_mib_view {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -4507,7 +4507,7 @@ sub snmp_v2_get_bulk {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -4681,7 +4681,7 @@ sub snmp_v2_get_bulk_max_repetitions_only {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -4857,7 +4857,7 @@ sub snmp_v2_get_bulk_end_of_mib_view {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -5027,7 +5027,7 @@ sub snmp_v2_set_no_access {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -5184,7 +5184,7 @@ sub snmp_config_limit {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
@@ -5355,7 +5355,7 @@ sub snmp_config_max_variables {
 
   my $config = {
     TraceLog => $log_file,
-    Trace => 'snmp:20 snmp-asn1:20 snmp-db:20 snmp-msg:20 snmp-pdu:20 snmp-smi:20',
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
     PidFile => $pid_file,
     ScoreboardFile => $scoreboard_file,
     SystemLog => $log_file,
