@@ -326,7 +326,7 @@ sub snmp_v1_get_unknown {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -466,6 +466,9 @@ sub snmp_v1_get_unknown {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -480,7 +483,7 @@ sub snmp_v1_get_wrong_community {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -627,6 +630,9 @@ sub snmp_v1_get_wrong_community {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -641,7 +647,7 @@ sub snmp_v1_get_daemon_software {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -791,6 +797,9 @@ sub snmp_v1_get_daemon_software {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -805,7 +814,7 @@ sub snmp_v1_get_daemon_version {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -955,6 +964,9 @@ sub snmp_v1_get_daemon_version {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -969,7 +981,7 @@ sub snmp_v1_get_daemon_admin {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -1120,6 +1132,9 @@ sub snmp_v1_get_daemon_admin {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -1134,7 +1149,7 @@ sub snmp_v1_get_daemon_admin_with_config {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -1287,6 +1302,9 @@ sub snmp_v1_get_daemon_admin_with_config {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -1301,7 +1319,7 @@ sub snmp_v1_get_daemon_uptime {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -1454,6 +1472,9 @@ sub snmp_v1_get_daemon_uptime {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -1468,7 +1489,7 @@ sub snmp_v1_get_daemon_vhost_count {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -1618,6 +1639,9 @@ sub snmp_v1_get_daemon_vhost_count {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -1632,7 +1656,7 @@ sub snmp_v1_get_daemon_restart_count {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -1782,6 +1806,9 @@ sub snmp_v1_get_daemon_restart_count {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -1796,7 +1823,7 @@ sub snmp_v1_get_daemon_segfault_count {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -1946,6 +1973,9 @@ sub snmp_v1_get_daemon_segfault_count {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -1960,7 +1990,7 @@ sub snmp_v1_get_daemon_maxinsts_count {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -2110,6 +2140,9 @@ sub snmp_v1_get_daemon_maxinsts_count {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -2124,7 +2157,7 @@ sub snmp_v1_get_upload_counts {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -2287,6 +2320,9 @@ sub snmp_v1_get_upload_counts {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -2301,7 +2337,7 @@ sub snmp_v1_get_multi {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -2459,6 +2495,9 @@ sub snmp_v1_get_multi {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -2473,7 +2512,7 @@ sub snmp_v1_get_multi_with_unknown {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -2614,6 +2653,9 @@ sub snmp_v1_get_multi_with_unknown {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -2628,7 +2670,7 @@ sub snmp_v1_get_next {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -2780,6 +2822,9 @@ sub snmp_v1_get_next {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -2794,7 +2839,7 @@ sub snmp_v1_get_next_unknown {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -2934,6 +2979,9 @@ sub snmp_v1_get_next_unknown {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -2948,7 +2996,7 @@ sub snmp_v1_get_next_missing_instance_id {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -3099,6 +3147,9 @@ sub snmp_v1_get_next_missing_instance_id {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -3113,7 +3164,7 @@ sub snmp_v1_get_next_end_of_mib_view {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -3253,6 +3304,9 @@ sub snmp_v1_get_next_end_of_mib_view {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -3267,7 +3321,7 @@ sub snmp_v1_get_next_multi {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -3425,6 +3479,9 @@ sub snmp_v1_get_next_multi {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -3439,7 +3496,7 @@ sub snmp_v1_get_next_multi_with_unknown {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -3580,6 +3637,9 @@ sub snmp_v1_get_next_multi_with_unknown {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -3594,7 +3654,7 @@ sub snmp_v1_set {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -3734,6 +3794,9 @@ sub snmp_v1_set {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -3748,7 +3811,7 @@ sub snmp_v1_trap {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -3888,6 +3951,9 @@ sub snmp_v1_trap {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -3902,7 +3968,7 @@ sub snmp_v2_get_unknown {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -4052,6 +4118,9 @@ sub snmp_v2_get_unknown {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -4066,7 +4135,7 @@ sub snmp_v2_get_missing_instance_id {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -4216,6 +4285,9 @@ sub snmp_v2_get_missing_instance_id {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -4230,7 +4302,7 @@ sub snmp_v2_get_next_end_of_mib_view {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -4380,6 +4452,9 @@ sub snmp_v2_get_next_end_of_mib_view {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -4394,7 +4469,7 @@ sub snmp_v2_get_bulk {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -4547,6 +4622,9 @@ sub snmp_v2_get_bulk {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -4561,7 +4639,7 @@ sub snmp_v2_get_bulk_max_repetitions_only {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -4719,6 +4797,9 @@ sub snmp_v2_get_bulk_max_repetitions_only {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -4733,7 +4814,7 @@ sub snmp_v2_get_bulk_end_of_mib_view {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -4892,6 +4973,9 @@ sub snmp_v2_get_bulk_end_of_mib_view {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -4906,7 +4990,7 @@ sub snmp_v2_set_no_access {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -5046,6 +5130,9 @@ sub snmp_v2_set_no_access {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -5060,7 +5147,7 @@ sub snmp_config_limit {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -5206,6 +5293,9 @@ sub snmp_config_limit {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
@@ -5220,7 +5310,7 @@ sub snmp_config_max_variables {
   my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
   my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
 
-  my $log_file = File::Spec->rel2abs('tests.log');
+  my $log_file = test_get_logfile();
 
   my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
   my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
@@ -5368,6 +5458,9 @@ sub snmp_config_max_variables {
   $self->assert_child_ok($pid);
 
   if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
     die($ex);
   }
 
