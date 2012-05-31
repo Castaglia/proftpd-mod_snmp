@@ -309,7 +309,14 @@ int snmp_asn1_read_int(pool *p, unsigned char **buf, size_t *buflen,
     return -1;
   }
 
-  /* XXX Check that we actually read an INTEGER as expected? */
+  /*  Check that we actually read an INTEGER as expected. */
+  if (!(*asn1_type & SNMP_ASN1_TYPE_INTEGER)) {
+    pr_trace_msg(trace_channel, 3,
+      "unable to read INTEGER (received type '%s')",
+      snmp_asn1_get_tagstr(p, *asn1_type));
+    errno = EINVAL;
+    return -1;
+  }
 
   /* Length */
   res = asn1_read_len(p, buf, buflen, &objlen);
