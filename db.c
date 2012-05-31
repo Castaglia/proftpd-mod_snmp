@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp database storage
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ int snmp_table_ids[] = {
 
 static const char *snmp_db_root = NULL;
 
-static const char *trace_channel = "snmp-db";
+static const char *trace_channel = "snmp.db";
 
 struct snmp_field_info {
   unsigned int field;

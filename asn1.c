@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp ASN.1 support
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 #include "mib.h"
 #include "stacktrace.h"
 
-static const char *trace_channel = "snmp-asn1";
+static const char *trace_channel = "snmp.asn1";
 
 /* Set an arbitrary max limit of 512K on ASN.1 objects */
 #define SNMP_ASN1_MAX_OBJECT_LEN	(512 * 1024)

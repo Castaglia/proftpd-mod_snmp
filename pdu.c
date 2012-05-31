@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp PDU routines
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 #include "asn1.h"
 #include "stacktrace.h"
 
-static const char *trace_channel = "snmp-pdu";
+static const char *trace_channel = "snmp.pdu";
 
 const char *snmp_pdu_get_request_type_desc(unsigned char request_type) {
   const char *desc;

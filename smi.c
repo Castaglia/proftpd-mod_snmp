@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp SMI routines
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 #include "msg.h"
 #include "stacktrace.h"
 
-static const char *trace_channel = "snmp-smi";
+static const char *trace_channel = "snmp.smi";
 
 const char *snmp_smi_get_varstr(pool *p, unsigned char var_type) {
   const char *varstr = "unknown";

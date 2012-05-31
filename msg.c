@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp message routines
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@
 #include "db.h"
 #include "stacktrace.h"
 
-static const char *trace_channel = "snmp-msg";
+static const char *trace_channel = "snmp.msg";
 
 const char *snmp_msg_get_versionstr(long snmp_version) {
   const char *versionstr = "unknown";

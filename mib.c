@@ -321,7 +321,7 @@ static struct snmp_mib snmp_mibs[] = {
 /* We only need to look this up once. */
 static int snmp_mib_max_idx = -1;
 
-static const char *trace_channel = "snmp-mib";
+static const char *trace_channel = "snmp.mib";
 
 int snmp_mib_get_nearest_idx(oid_t *mib_oid, unsigned int mib_oidlen) {
   register unsigned int i;
