@@ -127,7 +127,14 @@ int snmp_msg_read(pool *p, unsigned char **buf, size_t *buflen,
     return -1;
   }
 
-  /* XXX Check that asn1_type is a UNIVERSTAL/PRIMITIVE/OCTETSTRING? */
+  /* Check that asn1_type is a UNIVERSTAL/PRIMITIVE/OCTETSTRING. */
+  if (!(asn1_type == (SNMP_ASN1_CLASS_UNIVERSAL|SNMP_ASN1_PRIMITIVE|SNMP_ASN1_TYPE_OCTETSTRING))) {
+    pr_trace_msg(trace_channel, 3,
+      "unable to read OCTET_STRING (received type '%s')",
+      snmp_asn1_get_tagstr(p, asn1_type));
+    errno = EINVAL;
+    return -1;
+  }
 
   pr_trace_msg(trace_channel, 17,
     "read %s message: community = '%s'",
