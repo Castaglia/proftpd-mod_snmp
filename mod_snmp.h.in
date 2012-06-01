@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +29,18 @@
 
 #include "conf.h"
 #include "privs.h"
+
+/* Define if you have the <sys/sysctl.h> header.  */
+#undef HAVE_SYS_SYSCTL_H
+
+/* Define if you have the <sys/sysinfo.h> header.  */
+#undef HAVE_SYS_SYSINFO_H
+
+/* Define if you hvae the sysctl(3) function.  */
+#undef HAVE_SYSCTL
+
+/* Define if you have the sysinfo(2) function.  */
+#undef HAVE_SYSINFO
 
 #include <signal.h>
 
