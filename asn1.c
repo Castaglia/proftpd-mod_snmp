@@ -401,14 +401,21 @@ int snmp_asn1_read_null(pool *p, unsigned char **buf, size_t *buflen,
     return -1;
   }
 
-  /* XXX Check that the type is actually a NULL, as expected? */
+  /* Check that the type is actually a NULL, as expected. */
+  if (!(*asn1_type & SNMP_ASN1_TYPE_NULL)) {
+    pr_trace_msg(trace_channel, 3,
+      "unable to read NULL (received type '%s')",
+      snmp_asn1_get_tagstr(p, *asn1_type));
+    errno = EINVAL;
+    return -1;
+  }
 
   res = asn1_read_len(p, buf, buflen, &objlen);
   if (res < 0) {
     return -1;
   }
 
-  /* XXX Check that the object len is zero, as expected! */
+  /* Check that the object len is zero, as expected. */
   if (objlen != 0) {
     pr_trace_msg(trace_channel, 3,
       "failed reading NULL object: object length (%u bytes) is not zero, "
@@ -444,7 +451,14 @@ int snmp_asn1_read_oid(pool *p, unsigned char **buf, size_t *buflen,
     return -1;
   }
 
-  /* XXX Check that asn1_type is actually for an OID, as expected?? */
+  /* Check that asn1_type is actually for an OID, as expected. */
+  if (!(*asn1_type & SNMP_ASN1_TYPE_OID)) {
+    pr_trace_msg(trace_channel, 3,
+      "unable to read OID (received type '%s')",
+      snmp_asn1_get_tagstr(p, *asn1_type));
+    errno = EINVAL;
+    return -1;
+  }
 
   /* Length */
   res = asn1_read_len(p, buf, buflen, &objlen);
@@ -542,8 +556,16 @@ int snmp_asn1_read_string(pool *p, unsigned char **buf, size_t *buflen,
     return -1;
   }
 
-  /* XXX Check the type to see if it actually is OCTET_STRING, as expected? */
-  /* XXX What about compound string? */
+  /* Check the type to see if it actually is OCTET_STRING, as expected.
+   * XXX What about compound strings, bitstrings?
+   */
+  if (!(*asn1_type & SNMP_ASN1_TYPE_OCTETSTRING)) {
+    pr_trace_msg(trace_channel, 3,
+      "unable to read OCTET_STRING (received type '%s')",
+      snmp_asn1_get_tagstr(p, *asn1_type));
+    errno = EINVAL;
+    return -1;
+  }
 
   /* Length */
   res = asn1_read_len(p, buf, buflen, &objlen);
@@ -1214,7 +1236,7 @@ int snmp_asn1_write_string(pool *p, unsigned char **buf, size_t *buflen,
   return 0;
 }
 
-/* ASN1. variable exception ::= 0x8i 0x00, where i the exception identifier:
+/* ASN.1 variable exception ::= 0x8i 0x00, where i the exception identifier:
  * noSuchObject(0), noSuchInstance(1), endOfMibView(2).
  */
 int snmp_asn1_write_exception(pool *p, unsigned char **buf, size_t *buflen,
