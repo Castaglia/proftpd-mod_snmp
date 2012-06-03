@@ -171,13 +171,23 @@ Then follow the usual steps:
 <b>Important Security Considerations</b><br>
 Do <b>not</b> configure <code>mod_snmp</code> to listen on a public Internet
 address.  The information provided via <code>mod_snmp</code> can be used
-by attackers to gain more information about your running, including being
-able to determine whether their logins fail due to a wrong password (in
-which case, they know that that user name is valid) or not.  It is <b>highly
-recommended</b> that you configure <code>mod_snmp</code> to only listen
-on internal/LAN addresses.  Furthermore, you should employ a firewall rule
-that <b>rejects</b> any UDP packets from the public Internet to your
+by attackers to gain more information about your running <code>proftpd</code>,
+including being able to determine whether their logins fail due to a wrong
+password (in which case, they know that that user name is valid) or not.  It
+is <b>highly recommended</b> that you configure <code>mod_snmp</code> to only
+listen on internal/LAN addresses.  Furthermore, you should employ a firewall
+rule that <b>rejects</b> any UDP packets from the public Internet to your
 <code>proftpd</code> instance.
+
+<p>
+<b>SNMP Listening Process</b><br>
+When <code>proftpd</code> starts up with <code>mod_snmp</code> enabled, the
+<code>mod_snmp</code> module will fork a new process that acts as the SNMP
+agent, receiving and responding to all SNMP requests.  This SNMP listening
+process automatically switches to the privileges configured by the
+<code>User</code> and <code>Group</code> directives, and will also automatically
+chroot itself to a subdirectory of the <code>SNMPTables</code> directory,
+after which all root privileges are permanently dropped.
 
 <p>
 <b>Example Configuration</b><br>
