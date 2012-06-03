@@ -1247,13 +1247,184 @@ static int snmp_agent_handle_request(struct snmp_packet *pkt) {
   return res;
 }
 
+static void snmp_agent_write_packet(int sockfd, struct snmp_packet *pkt) {
+  int res;
+  fd_set writefds;
+  struct timeval tv;
+
+  FD_ZERO(&writefds);
+  FD_SET(sockfd, &writefds);
+
+  while (TRUE) {
+    /* XXX Do we really need a timeout, after which we drop this packet? */
+    tv.tv_sec = 15;
+    tv.tv_usec = 0;
+
+    res = select(sockfd + 1, NULL, &writefds, NULL, &tv);
+    if (res < 0) {
+      if (errno == EINTR) {
+        pr_signals_handle();
+        continue;
+      }
+    }
+
+    break;
+  }
+
+  if (res > 0) {
+    if (FD_ISSET(sockfd, &writefds)) { 
+      pr_trace_msg(trace_channel, 3,
+        "sending %lu UDP message bytes to %s#%u",
+        (unsigned long) pkt->resp_datalen,
+        pr_netaddr_get_ipstr(pkt->remote_addr),
+        ntohs(pr_netaddr_get_port(pkt->remote_addr)));
+
+      res = sendto(sockfd, pkt->resp_data, pkt->resp_datalen, 0,
+        pr_netaddr_get_sockaddr(pkt->remote_addr),
+        pr_netaddr_get_sockaddr_len(pkt->remote_addr));
+      if (res < 0) {
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "error sending %u UDP message bytes to %s#%u: %s",
+          (unsigned int) pkt->resp_datalen,
+          pr_netaddr_get_ipstr(pkt->remote_addr),
+          ntohs(pr_netaddr_get_port(pkt->remote_addr)), strerror(errno));
+
+      } else {
+        pr_trace_msg(trace_channel, 3,
+          "sent %d UDP message bytes to %s#%u", res,
+          pr_netaddr_get_ipstr(pkt->remote_addr),
+          ntohs(pr_netaddr_get_port(pkt->remote_addr)));
+
+        res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_SENT_TOTAL, 1);
+        if (res < 0) {
+          (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+            "error incrementing SNMP database for "
+            "snmp.packetsSentTotal: %s", strerror(errno));
+        }
+      }
+    }
+
+  } else {
+    if (res == 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "dropping response after waiting %u secs for available socket space",
+        (unsigned int) tv.tv_sec);
+
+    } else {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "dropping response due to select(2) failure: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_DROPPED_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing snmp.packetsDroppedTotal: %s", strerror(errno));
+    }
+  }
+}
+
+static int snmp_agent_send_trap(int sockfd, pr_netaddr_t *agent_addr,
+    unsigned char *trap_data, size_t trap_datalen, pr_netaddr_t *trap_addr,
+    const char *trap_community) {
+  int res;
+  struct snmp_packet *pkt = NULL;
+
+  pkt = snmp_packet_create(snmp_pool);
+  pkt->snmp_version = SNMP_PROTOCOL_VERSION_2;
+  pkt->community = (char *) trap_community;
+  pkt->community_len = strlen(pkt->community);
+  pkt->remote_addr = trap_addr;
+
+  pkt->resp_pdu = snmp_pdu_create(pkt->pool, SNMP_PDU_TRAP_V2);
+  pkt->resp_pdu->err_code = 0;
+  pkt->resp_pdu->err_idx = 0;
+
+  /* XXX Need to implement, for supporting traps. */
+
+  /* XXX Generate random long for the request ID; what to use?  rand(3)
+   * generates ints, not longs...but random(3) generates longs.
+   *
+   * Add autoconf check for srandomdev(3), random(3).  Maybe even use this
+   * in the core engine.
+   */
+
+  /* XXX set pkt->resp_pdu->request_id */
+  /* XXX set first varbind to sysUptime.0 (1.3.6.1.2.1.1.3.0, TimeTicks)
+   *  (defined in RFC 3418).
+   *
+   */
+
+  /* XXX set second varbind to snmpTrapOID.0 (1.3.6.1.6.3.1.1.4.1.0, OID)
+   *  (defined in RFC 3418).
+   *
+   */
+
+  /* XXX set third varind to snmpTrapAddress.0 (1.3.6.1.6.3.18.13.0, IpAddress)
+   *  (defined in RFC 2576).
+   *
+   * This indicates the sender's IpAddress (SNMP_SMI_IPADDR).
+   *
+   * This varbind CAN be added by proxies, but only if it doesn't already
+   * appear in the varbind list.  So just add it ourselves.
+   */
+
+  (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+    "writing SNMP trap for %s, community = '%s', request ID %ld, "
+    "request type '%s'", snmp_msg_get_versionstr(pkt->snmp_version),
+    pkt->community, pkt->resp_pdu->request_id,
+    snmp_pdu_get_request_type_desc(pkt->resp_pdu->request_type));
+
+  res = snmp_msg_write(pkt->pool, &(pkt->resp_data), &(pkt->resp_datalen),
+    pkt->community, pkt->community_len, pkt->snmp_version, pkt->resp_pdu);
+  if (res < 0) {
+    int xerrno = errno;
+
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error writing SNMP trap to UDP packet: %s", strerror(xerrno));
+
+    destroy_pool(pkt->pool);
+    errno = xerrno;
+    return -1;
+  }
+
+  snmp_agent_write_packet(sockfd, pkt);
+  destroy_pool(pkt->pool);
+
+  return 0;
+}
+
+static void snmp_agent_handle_notifications(int sockfd,
+    pr_netaddr_t *agent_addr) {
+  int res;
+  unsigned char *trap_data;
+  size_t trap_datalen;
+  const char *trap_community;
+  pr_netaddr_t *trap_addr;
+
+  /* XXX Check the various trap tables.  For any trap value which meets the
+   * trap generation criteria, get the data/len, and send a trap with that
+   * data to the trap-specific address and community.
+   */
+
+  /* By default, we use the same SNMPCommunity we use for authorizing
+   * incoming requests.
+   */
+  trap_community = snmp_community;
+
+  /* XXX For each notifying event, send a separate trap. */
+  while (TRUE) {
+    res = snmp_agent_send_trap(sockfd, agent_addr, trap_data, trap_datalen,
+      trap_addr, trap_community);
+
+    break;
+  }
+}
+
 static int snmp_agent_handle_packet(int sockfd) {
   int nbytes, res;
   struct sockaddr_in from_sockaddr;
   socklen_t from_sockaddrlen;
   pr_netaddr_t from_addr;
-  fd_set writefds;
-  struct timeval tv;
   struct snmp_packet *pkt = NULL;
   
   pkt = snmp_packet_create(snmp_pool);
@@ -1273,6 +1444,8 @@ static int snmp_agent_handle_packet(int sockfd) {
   }
 
   pkt->req_datalen = nbytes;
+
+  /* XXX Support UDP/IPv6 in the future */
 
   pr_netaddr_clear(&from_addr);
   pr_netaddr_set_family(&from_addr, AF_INET);
@@ -1377,74 +1550,7 @@ static int snmp_agent_handle_packet(int sockfd) {
     return -1;
   }
 
-  FD_ZERO(&writefds);
-  FD_SET(sockfd, &writefds);
-
-  while (TRUE) {
-    /* XXX Do we really need a timeout, after which we drop this response? */
-    tv.tv_sec = 15;
-    tv.tv_usec = 0;
-
-    res = select(sockfd + 1, NULL, &writefds, NULL, &tv);
-    if (res < 0) {
-      if (errno == EINTR) {
-        pr_signals_handle();
-        continue;
-      }
-    }
-
-    break;
-  }
-
-  if (res > 0) {
-    if (FD_ISSET(sockfd, &writefds)) { 
-      pr_trace_msg(trace_channel, 3,
-        "sending %lu UDP response bytes to %s#%u",
-        (unsigned long) pkt->resp_datalen,
-        pr_netaddr_get_ipstr(pkt->remote_addr),
-        ntohs(pr_netaddr_get_port(pkt->remote_addr)));
-
-      res = sendto(sockfd, pkt->resp_data, pkt->resp_datalen, 0,
-        (struct sockaddr *) &from_sockaddr, from_sockaddrlen);
-      if (res < 0) {
-        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-          "error sending %u UDP response bytes to %s#%u: %s",
-          (unsigned int) pkt->resp_datalen,
-          pr_netaddr_get_ipstr(pkt->remote_addr),
-          ntohs(pr_netaddr_get_port(pkt->remote_addr)), strerror(errno));
-
-      } else {
-        pr_trace_msg(trace_channel, 3,
-          "sent %d UDP response bytes to %s#%u", res,
-          pr_netaddr_get_ipstr(pkt->remote_addr),
-          ntohs(pr_netaddr_get_port(pkt->remote_addr)));
-
-        res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_SENT_TOTAL, 1);
-        if (res < 0) {
-          (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-            "error incrementing SNMP database for "
-            "snmp.packetsSentTotal: %s", strerror(errno));
-        }
-      }
-    }
-
-  } else {
-    if (res == 0) {
-      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "dropping response after waiting %u secs for available socket space",
-        (unsigned int) tv.tv_sec);
-
-    } else {
-      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "dropping response due to select(2) failure: %s", strerror(errno));
-    }
-
-    res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_DROPPED_TOTAL, 1);
-    if (res < 0) {
-      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "error incrementing snmp.packetsDroppedTotal: %s", strerror(errno));
-    }
-  }
+  snmp_agent_write_packet(sockfd, pkt);
 
   destroy_pool(pkt->pool);
   return 0;
@@ -1475,7 +1581,7 @@ static int snmp_agent_listen(pr_netaddr_t *agent_addr) {
   return 0;
 }
 
-static void snmp_agent_loop(int sockfd) {
+static void snmp_agent_loop(int sockfd, pr_netaddr_t *agent_addr) {
   fd_set listenfds;
   struct timeval tv;
   int res;
@@ -1484,9 +1590,15 @@ static void snmp_agent_loop(int sockfd) {
     /* XXX Is it necessary to even have a timeout?  We could simply block
      * in select(2) indefinitely, until either an event arrives or we are
      * interrupted by a signal.
+     *
+     * Yes, we DO need a timeout here, specifically to poll the trap table
+     * for any trap-generating state.  Rather than using a timer and using
+     * SIGALRM handling, we can reuse this event loop.
      */
     tv.tv_sec = 60;
     tv.tv_usec = 0L;
+
+    snmp_agent_handle_notifications(sockfd, agent_addr);
 
     FD_ZERO(&listenfds);
     FD_SET(sockfd, &listenfds);
@@ -1614,7 +1726,7 @@ static pid_t snmp_agent_start(const char *tables_dir, int agent_type,
     "SNMP agent process running with UID %lu, GID %lu, restricted to '%s'",
     (unsigned long) getuid(), (unsigned long) getgid(), getcwd(NULL, 0));
 
-  snmp_agent_loop(agent_fd);
+  snmp_agent_loop(agent_fd, agent_addr);
 
   /* When we are done, we simply exit. */;
   exit(0);
