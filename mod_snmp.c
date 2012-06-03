@@ -1682,22 +1682,20 @@ static pid_t snmp_agent_start(const char *tables_dir, int agent_type,
 
   if (getuid() == PR_ROOT_UID) {
     int res;
+    char *agent_chroot;
 
-    /* Chroot to the SNMPTables directory before dropping root privs.
-     *
-     * XXX Make sure that the actual table files have permissions such
-     * that the non-privileged user cannot modify them easily.
-     */
+    /* Chroot to the SNMPTables/empty/ directory before dropping root privs. */
 
-    res = chroot(tables_dir);
+    agent_chroot = pdircat(snmp_pool, tables_dir, "empty", NULL);
+    res = chroot(agent_chroot);
     if (res < 0) {
       int xerrno = errno;
 
       PRIVS_RELINQUISH
  
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "unable to chroot to SNMPTables directory '%s': %s", tables_dir,
-        strerror(xerrno));
+        "unable to chroot to SNMPTables/empty/ directory '%s': %s",
+        agent_chroot, strerror(xerrno));
       exit(0);
     }
 
@@ -1987,6 +1985,8 @@ MODRET set_snmptables(cmd_rec *cmd) {
 
   res = stat(cmd->argv[1], &st);
   if (res < 0) {
+    char *agent_chroot;
+
     if (errno != ENOENT) {
       CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unable to stat '", cmd->argv[1],
         "': ", strerror(errno), NULL));
@@ -2002,13 +2002,50 @@ MODRET set_snmptables(cmd_rec *cmd) {
         cmd->argv[1], "': ", strerror(errno), NULL));
     }
 
+    /* Also create the empty/ directory underneath, for the chroot. */
+    agent_chroot = pdircat(cmd->tmp_pool, cmd->argv[1], "empty", NULL);
+
+    res = snmp_mkpath(cmd->tmp_pool, agent_chroot, geteuid(), getegid(), 0111);
+    if (res < 0) {
+      CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unable to create directory '",
+        agent_chroot, "': ", strerror(errno), NULL));
+    }
+
     pr_log_debug(DEBUG2, MOD_SNMP_VERSION
       ": created SNMPTables directory '%s'", cmd->argv[1]);
 
   } else {
+    char *agent_chroot;
+
     if (!S_ISDIR(st.st_mode)) {
       CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unable to use '", cmd->argv[1],
         ": Not a directory", NULL));
+    }
+
+    /* See if the chroot directory empty/ already exists as well.  And enforce
+     * the permissions on that directory.
+     */
+    agent_chroot = pdircat(cmd->tmp_pool, cmd->argv[1], "empty", NULL);
+
+    res = stat(agent_chroot, &st);
+    if (res < 0) {
+      if (errno != ENOENT) {
+        CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unable to stat '", agent_chroot,
+          "': ", strerror(errno), NULL));
+      }
+
+      res = snmp_mkpath(cmd->tmp_pool, agent_chroot, geteuid(), getegid(),
+        0111);
+      if (res < 0) {
+        CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unable to create directory '",
+          agent_chroot, "': ", strerror(errno), NULL));
+      }
+
+    } else {
+      if ((st.st_mode & S_IFMT) != (S_IXUSR|S_IXGRP|S_IXOTH)) {
+        CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "directory '", agent_chroot,
+          "' has incorrect permissions (not 0111 as required)", NULL));
+      }
     }
   }
 
