@@ -29,6 +29,6 @@
 #ifndef MOD_SNMP_UPTIME_H
 #define MOD_SNMP_UPTIME_H
 
-int snmp_uptime_get(pool *p, unsigned long *nsecs);
+int snmp_uptime_get(pool *p, struct timeval *tv);
 
 #endif
