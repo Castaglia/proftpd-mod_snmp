@@ -50,9 +50,8 @@ static int snmp_uptime_via_sysinfo(struct timeval *tv) {
 
   return res;
 }
-#endif /* No sysinfo(2) */
 
-#ifdef HAVE_SYSCTL
+#elif HAVE_SYSCTL
 static int snmp_uptime_via_sysctl(struct timeval *tv) {
   int res;
   int mib[2];
@@ -73,7 +72,7 @@ static int snmp_uptime_via_sysctl(struct timeval *tv) {
 
   return res;
 }
-#endif /* No sysctl(3) */
+#endif /* No sysinfo(3), no sysctl(3) */
 
 int snmp_uptime_get(pool *p, struct timeval *tv) {
   int res;
