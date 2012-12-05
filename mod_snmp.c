@@ -2042,7 +2042,13 @@ MODRET set_snmptables(cmd_rec *cmd) {
       }
 
     } else {
-      if ((st.st_mode & S_IFMT) != (S_IXUSR|S_IXGRP|S_IXOTH)) {
+      mode_t dir_mode, expected_mode;
+
+      dir_mode = st.st_mode;
+      dir_mode &= ~S_IFMT;
+      expected_mode = (S_IXUSR|S_IXGRP|S_IXOTH);
+
+      if (dir_mode != expected_mode) {
         CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "directory '", agent_chroot,
           "' has incorrect permissions (not 0111 as required)", NULL));
       }
