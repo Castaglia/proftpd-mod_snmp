@@ -16,6 +16,11 @@ $| = 1;
 my $order = 0;
 
 my $TESTS = {
+  snmp_start_existing_dirs => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
   snmp_v1_get_unknown => {
     order => ++$order,
     test_class => [qw(forking snmp)],
@@ -317,6 +322,107 @@ sub upload_file {
 }
 
 # Test cases
+
+sub snmp_start_existing_dirs {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = test_get_logfile();
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  my $ex;
+
+  # First, start the server
+  server_start($config_file);
+  
+  # ...then stop the server.  This means mod_snmp will have created all
+  # the necessary directories, etc.
+  sleep(2);
+  server_stop($pid_file);
+
+  # Now start the server again.  Time time, mod_snmp will double-check
+  # permissions et al on the already-existing mod_snmp directories that it
+  # created the first time.
+  sleep(2);
+  server_start($config_file);
+
+  # Stop server
+  sleep(2);
+  eval { server_stop($pid_file) };
+  if ($@) {
+    $ex = $@;
+  }
+
+  if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
+    die($ex);
+  }
+
+  unlink($log_file);
+}
 
 sub snmp_v1_get_unknown {
   my $self = shift;
