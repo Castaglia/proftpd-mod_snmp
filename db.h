@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp database tables
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,9 +36,10 @@
 #define SNMP_DB_ID_SNMP			3
 #define SNMP_DB_ID_SSL			4
 #define SNMP_DB_ID_SSH			5
-#define SNMP_DB_ID_QUOTA		6
-#define SNMP_DB_ID_BAN			7
-#define SNMP_DB_ID_GEOIP		8
+#define SNMP_DB_ID_SQL			6
+#define SNMP_DB_ID_QUOTA		7
+#define SNMP_DB_ID_BAN			8
+#define SNMP_DB_ID_GEOIP		9
 
 extern int snmp_table_ids[];
 
@@ -96,6 +97,8 @@ extern int snmp_table_ids[];
 
 /* XXX ssh database fields */
 
+/* XXX sql database fields */
+
 /* XXX quota database fields */
 
 /* XXX ban database fields */
@@ -112,10 +115,10 @@ int snmp_db_close(pool *p, int db_id);
 int snmp_db_open(pool *p, int db_id);
 int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
   char **str_value, size_t *str_valuelen);
-int snmp_db_incr_value(unsigned int field, int32_t incr);
+int snmp_db_incr_value(pool *p, unsigned int field, int32_t incr);
 
 /* Used to reset/clear counters. */
-int snmp_db_reset_value(unsigned int field);
+int snmp_db_reset_value(pool *p, unsigned int field);
 
 /* Configure the SNMPTables path to use as the root/parent directory for the
  * various database table files.
