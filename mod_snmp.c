@@ -382,7 +382,7 @@ static int snmp_security_check(struct snmp_packet *pkt) {
           "ignoring message", snmp_msg_get_versionstr(pkt->snmp_version),
           pkt->community);
 
-        /* XXX Send authenticationFailure trap to SNMPTraps address */
+        /* XXX Send authenticationFailure trap to SNMPNotify address */
 
         res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_AUTH_ERR_TOTAL, 1);
         if (res < 0) {
@@ -1413,14 +1413,14 @@ static void snmp_agent_handle_notifications(int sockfd,
   trap_community = snmp_community;
 
   /* XXX For each notifying event, send a separate trap. */
-  c = find_config(main_server->conf, CONF_PARAM, "SNMPTraps", FALSE);
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPNotify", FALSE);
   while (c != NULL) {
     pr_signals_handle();
 
     res = snmp_agent_send_trap(sockfd, agent_addr, trap_data, trap_datalen,
       trap_addr, trap_community);
 
-    c = find_config_next(c, c->next, CONF_PARAM, "SNMPTraps", FALSE);
+    c = find_config_next(c, c->next, CONF_PARAM, "SNMPNotify", FALSE);
   }
 }
 
@@ -1953,6 +1953,17 @@ MODRET set_snmpmaxvariables(cmd_rec *cmd) {
   return PR_HANDLED(cmd);
 }
 
+/* usage: SNMPNotify type address port [threshold] */
+MODRET set_snmpnotify(cmd_rec *cmd) {
+
+  /* XXX */
+
+  CHECK_ARGS(cmd, 3);
+  CHECK_CONF(cmd, CONF_ROOT);
+
+  return PR_HANDLED(cmd);
+}
+
 /* usage: SNMPOptions opt1 ... optN */
 MODRET set_snmpoptions(cmd_rec *cmd) {
   CHECK_CONF(cmd, CONF_ROOT);
@@ -2060,17 +2071,6 @@ MODRET set_snmptables(cmd_rec *cmd) {
   }
 
   (void) add_config_param_str(cmd->argv[0], 1, cmd->argv[1]);
-  return PR_HANDLED(cmd);
-}
-
-/* usage: SNMPTraps address port */
-MODRET set_snmptraps(cmd_rec *cmd) {
-
-  /* XXX */
-
-  CHECK_ARGS(cmd, 2);
-  CHECK_CONF(cmd, CONF_ROOT);
-
   return PR_HANDLED(cmd);
 }
 
@@ -2796,9 +2796,9 @@ static conftable snmp_conftab[] = {
   { "SNMPEngine",	set_snmpengine,		NULL },
   { "SNMPLog",		set_snmplog,		NULL },
   { "SNMPMaxVariables",	set_snmpmaxvariables,	NULL },
+  { "SNMPNotify",	set_snmpnotify,		NULL },
   { "SNMPOptions",	set_snmpoptions,	NULL },
   { "SNMPTables",	set_snmptables,		NULL },
-  { "SNMPTraps",	set_snmptraps,		NULL },
   { NULL }
 };
 
