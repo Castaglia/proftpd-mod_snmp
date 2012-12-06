@@ -384,7 +384,8 @@ static int snmp_security_check(struct snmp_packet *pkt) {
 
         /* XXX Send authenticationFailure trap to SNMPNotify address */
 
-        res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_AUTH_ERR_TOTAL, 1);
+        res = snmp_db_incr_value(pkt->pool,
+          SNMP_DB_SNMP_F_PKTS_AUTH_ERR_TOTAL, 1);
         if (res < 0) {
           (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
             "error incrementing snmp.packetsAuthFailedTotal: %s",
@@ -1295,7 +1296,7 @@ static void snmp_agent_write_packet(int sockfd, struct snmp_packet *pkt) {
           pr_netaddr_get_ipstr(pkt->remote_addr),
           ntohs(pr_netaddr_get_port(pkt->remote_addr)));
 
-        res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_SENT_TOTAL, 1);
+        res = snmp_db_incr_value(pkt->pool, SNMP_DB_SNMP_F_PKTS_SENT_TOTAL, 1);
         if (res < 0) {
           (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
             "error incrementing SNMP database for "
@@ -1315,7 +1316,7 @@ static void snmp_agent_write_packet(int sockfd, struct snmp_packet *pkt) {
         "dropping response due to select(2) failure: %s", strerror(errno));
     }
 
-    res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_DROPPED_TOTAL, 1);
+    res = snmp_db_incr_value(pkt->pool, SNMP_DB_SNMP_F_PKTS_DROPPED_TOTAL, 1);
     if (res < 0) {
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
         "error incrementing snmp.packetsDroppedTotal: %s", strerror(errno));
@@ -1462,7 +1463,7 @@ static int snmp_agent_handle_packet(int sockfd) {
     pr_netaddr_get_ipstr(pkt->remote_addr),
     ntohs(pr_netaddr_get_port(pkt->remote_addr))); 
 
-  res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_RECVD_TOTAL, 1);
+  res = snmp_db_incr_value(pkt->pool, SNMP_DB_SNMP_F_PKTS_RECVD_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
@@ -2084,7 +2085,8 @@ MODRET snmp_log_list(cmd_rec *cmd) {
     return PR_DECLINED(cmd);
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_DIR_LIST_TOTAL, 1);
+  res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_FTP_XFERS_F_DIR_LIST_TOTAL,
+    1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
@@ -2101,7 +2103,8 @@ MODRET snmp_err_list(cmd_rec *cmd) {
     return PR_DECLINED(cmd);
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_DIR_LIST_ERR_TOTAL, 1);
+  res = snmp_db_incr_value(cmd->tmp_pool,
+    SNMP_DB_FTP_XFERS_F_DIR_LIST_ERR_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
@@ -2118,7 +2121,7 @@ MODRET snmp_log_pass(cmd_rec *cmd) {
     return PR_DECLINED(cmd);
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_LOGINS_F_TOTAL, 1);
+  res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_FTP_LOGINS_F_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for ftp.logins.loginsTotal: %s",
@@ -2126,14 +2129,14 @@ MODRET snmp_log_pass(cmd_rec *cmd) {
   }
 
   if (session.anon_config != NULL) {
-    res = snmp_db_incr_value(SNMP_DB_FTP_LOGINS_F_ANON_COUNT, 1);
+    res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_FTP_LOGINS_F_ANON_COUNT, 1);
     if (res < 0) {
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
         "error incrementing SNMP database for "
         "ftp.logins.anonLoginCount: %s", strerror(errno));
     }
 
-    res = snmp_db_incr_value(SNMP_DB_FTP_LOGINS_F_ANON_TOTAL, 1);
+    res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_FTP_LOGINS_F_ANON_TOTAL, 1);
     if (res < 0) {
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
         "error incrementing SNMP database for "
@@ -2151,7 +2154,7 @@ MODRET snmp_err_pass(cmd_rec *cmd) {
     return PR_DECLINED(cmd);
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_LOGINS_F_ERR_TOTAL, 1);
+  res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_FTP_LOGINS_F_ERR_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
@@ -2170,7 +2173,8 @@ MODRET snmp_log_retr(cmd_rec *cmd) {
     return PR_DECLINED(cmd);
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_FILE_DOWNLOAD_TOTAL, 1);
+  res = snmp_db_incr_value(cmd->tmp_pool,
+    SNMP_DB_FTP_XFERS_F_FILE_DOWNLOAD_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for ftp.fileDownloadTotal: %s",
@@ -2194,7 +2198,8 @@ MODRET snmp_log_retr(cmd_rec *cmd) {
   retr_kb = (snmp_retr_bytes / 1024);
   rem_bytes = (snmp_retr_bytes % 1024);
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_KB_DOWNLOAD_TOTAL, retr_kb);
+  res = snmp_db_incr_value(cmd->tmp_pool,
+    SNMP_DB_FTP_XFERS_F_KB_DOWNLOAD_TOTAL, retr_kb);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for ftp.kbDownloadTotal: %s",
@@ -2212,7 +2217,8 @@ MODRET snmp_err_retr(cmd_rec *cmd) {
     return PR_DECLINED(cmd);
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL, 1);
+  res = snmp_db_incr_value(cmd->tmp_pool,
+    SNMP_DB_FTP_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
@@ -2231,7 +2237,8 @@ MODRET snmp_log_stor(cmd_rec *cmd) {
     return PR_DECLINED(cmd);
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_FILE_UPLOAD_TOTAL, 1);
+  res = snmp_db_incr_value(cmd->tmp_pool,
+    SNMP_DB_FTP_XFERS_F_FILE_UPLOAD_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for ftp.fileUploadTotal: %s",
@@ -2255,7 +2262,8 @@ MODRET snmp_log_stor(cmd_rec *cmd) {
   stor_kb = (snmp_stor_bytes / 1024);
   rem_bytes = (snmp_stor_bytes % 1024);
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_KB_UPLOAD_TOTAL, stor_kb);
+  res = snmp_db_incr_value(cmd->tmp_pool,
+    SNMP_DB_FTP_XFERS_F_KB_UPLOAD_TOTAL, stor_kb);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for ftp.kbUploadTotal: %s",
@@ -2273,7 +2281,8 @@ MODRET snmp_err_stor(cmd_rec *cmd) {
     return PR_DECLINED(cmd);
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_XFERS_F_FILE_UPLOAD_ERR_TOTAL, 1);
+  res = snmp_db_incr_value(cmd->tmp_pool,
+    SNMP_DB_FTP_XFERS_F_FILE_UPLOAD_ERR_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for ftp.fileUploadFailedTotal: %s",
@@ -2308,6 +2317,7 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
       break;
 
     case PR_AUTH_BADPWD:
+      /* XXX Send trap here? */
       field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
       break;
 
@@ -2316,7 +2326,7 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
       break;
   }
   
-  res = snmp_db_incr_value(field, 1);
+  res = snmp_db_incr_value(session.pool, field, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error decrementing SNMP database for login failure total: %s",
@@ -2331,7 +2341,8 @@ static void snmp_cmd_invalid_ev(const void *event_data, void *user_data) {
     return;
   }
   
-  res = snmp_db_incr_value(SNMP_DB_FTP_SESS_F_CMD_INVALID_TOTAL, 1);
+  res = snmp_db_incr_value(session.pool,
+    SNMP_DB_FTP_SESS_F_CMD_INVALID_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error decrementing SNMP database for "
@@ -2343,7 +2354,8 @@ static void snmp_exit_ev(const void *event_data, void *user_data) {
   int res;
 
   if (session.disconnect_reason == PR_SESS_DISCONNECT_SESSION_INIT_FAILED) {
-    res = snmp_db_incr_value(SNMP_DB_DAEMON_F_CONN_REFUSED_TOTAL, 1);
+    res = snmp_db_incr_value(snmp_pool,
+      SNMP_DB_DAEMON_F_CONN_REFUSED_TOTAL, 1);
     if (res < 0) {
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
         "error decrementing SNMP database for "
@@ -2351,7 +2363,7 @@ static void snmp_exit_ev(const void *event_data, void *user_data) {
     }
 
   } else {
-    res = snmp_db_incr_value(SNMP_DB_DAEMON_F_CONN_COUNT, -1);
+    res = snmp_db_incr_value(snmp_pool, SNMP_DB_DAEMON_F_CONN_COUNT, -1);
     if (res < 0) {
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
         "error decrementing SNMP database for daemon.connectionCount: %s",
@@ -2359,7 +2371,8 @@ static void snmp_exit_ev(const void *event_data, void *user_data) {
     }
 
     if (session.anon_config != NULL) {
-      res = snmp_db_incr_value(SNMP_DB_FTP_LOGINS_F_ANON_COUNT, -1);
+      res = snmp_db_incr_value(snmp_pool,
+        SNMP_DB_FTP_LOGINS_F_ANON_COUNT, -1);
       if (res < 0) {
         (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
           "error decrementing SNMP database for "
@@ -2381,7 +2394,7 @@ static void snmp_max_inst_ev(const void *event_data, void *user_data) {
     return;
   }
   
-  res = snmp_db_incr_value(SNMP_DB_DAEMON_F_MAXINST_COUNT, 1);
+  res = snmp_db_incr_value(session.pool, SNMP_DB_DAEMON_F_MAXINST_COUNT, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error decrementing SNMP database for daemon.maxInstancesLimitTotal: %s",
@@ -2513,7 +2526,7 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
     nvhosts++;
   }
 
-  res = snmp_db_incr_value(SNMP_DB_DAEMON_F_VHOST_COUNT, nvhosts);
+  res = snmp_db_incr_value(snmp_pool, SNMP_DB_DAEMON_F_VHOST_COUNT, nvhosts);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for daemon.vhostCount: %s",
@@ -2528,7 +2541,7 @@ static void snmp_restart_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  res = snmp_db_incr_value(SNMP_DB_DAEMON_F_RESTART_COUNT, 1);
+  res = snmp_db_incr_value(snmp_pool, SNMP_DB_DAEMON_F_RESTART_COUNT, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for daemon.restartCount: %s",
@@ -2620,7 +2633,7 @@ static void snmp_timeout_idle_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_TIMEOUTS_F_IDLE_TOTAL, 1);
+  res = snmp_db_incr_value(session.pool, SNMP_DB_FTP_TIMEOUTS_F_IDLE_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing ftp.timeouts.idleTimeoutTotal: %s",
@@ -2635,7 +2648,7 @@ static void snmp_timeout_login_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_TIMEOUTS_F_LOGIN_TOTAL, 1);
+  res = snmp_db_incr_value(session.pool, SNMP_DB_FTP_TIMEOUTS_F_LOGIN_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing ftp.timeouts.loginTimeoutTotal: %s",
@@ -2650,7 +2663,8 @@ static void snmp_timeout_noxfer_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_TIMEOUTS_F_NOXFER_TOTAL, 1);
+  res = snmp_db_incr_value(session.pool,
+    SNMP_DB_FTP_TIMEOUTS_F_NOXFER_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing ftp.timeouts.noTransferTimeoutTotal: %s",
@@ -2665,7 +2679,8 @@ static void snmp_timeout_stalled_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  res = snmp_db_incr_value(SNMP_DB_FTP_TIMEOUTS_F_STALLED_TOTAL, 1);
+  res = snmp_db_incr_value(session.pool,
+    SNMP_DB_FTP_TIMEOUTS_F_STALLED_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing ftp.timeouts.stalledTimeoutTotal: %s",
@@ -2673,7 +2688,7 @@ static void snmp_timeout_stalled_ev(const void *event_data, void *user_data) {
   }
 }
 
-static void snmp_trap_ev(const void *event_data, void *user_data) {
+static void snmp_notify_ev(const void *event_data, void *user_data) {
 
   if (snmp_engine == FALSE) {
     return;
@@ -2706,7 +2721,7 @@ static int snmp_init(void) {
   pr_event_register(&snmp_module, "core.shutdown", snmp_shutdown_ev, NULL);
   pr_event_register(&snmp_module, "core.startup", snmp_startup_ev, NULL);
 
-  pr_event_register(&snmp_module, "mod_snmp.trap", snmp_trap_ev, NULL);
+  pr_event_register(&snmp_module, "mod_snmp.notify", snmp_notify_ev, NULL);
 
   /* Normally we should register the 'core.exit' event listener in the
    * sess_init callback.  However, we use this listener to listen for
@@ -2769,14 +2784,14 @@ static int snmp_sess_init(void) {
   pr_event_register(&snmp_module, "mod_auth.authentication-code",
     snmp_auth_code_ev, NULL);
 
-  res = snmp_db_incr_value(SNMP_DB_DAEMON_F_CONN_COUNT, 1);
+  res = snmp_db_incr_value(session.pool, SNMP_DB_DAEMON_F_CONN_COUNT, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing daemon.connectionCount: %s",
       strerror(errno));
   }
 
-  res = snmp_db_incr_value(SNMP_DB_DAEMON_F_CONN_TOTAL, 1);
+  res = snmp_db_incr_value(session.pool, SNMP_DB_DAEMON_F_CONN_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing daemon.connectionTotal: %s",
