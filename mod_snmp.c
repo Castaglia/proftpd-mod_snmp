@@ -1359,7 +1359,7 @@ static int snmp_agent_send_trap(int sockfd, pr_netaddr_t *agent_addr,
    *
    */
 
-  /* XXX set third varind to snmpTrapAddress.0 (1.3.6.1.6.3.18.13.0, IpAddress)
+  /* XXX set third varbind to snmpTrapAddress.0 (1.3.6.1.6.3.18.13.0, IpAddress)
    *  (defined in RFC 2576).
    *
    * This indicates the sender's IpAddress (SNMP_SMI_IPADDR).
@@ -1400,6 +1400,7 @@ static void snmp_agent_handle_notifications(int sockfd,
   size_t trap_datalen;
   const char *trap_community;
   pr_netaddr_t *trap_addr;
+  config_rec *c;
 
   /* XXX Check the various trap tables.  For any trap value which meets the
    * trap generation criteria, get the data/len, and send a trap with that
@@ -1412,11 +1413,14 @@ static void snmp_agent_handle_notifications(int sockfd,
   trap_community = snmp_community;
 
   /* XXX For each notifying event, send a separate trap. */
-  while (TRUE) {
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPTraps", FALSE);
+  while (c != NULL) {
+    pr_signals_handle();
+
     res = snmp_agent_send_trap(sockfd, agent_addr, trap_data, trap_datalen,
       trap_addr, trap_community);
 
-    break;
+    c = find_config_next(c, c->next, CONF_PARAM, "SNMPTraps", FALSE);
   }
 }
 
