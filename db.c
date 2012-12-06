@@ -46,6 +46,7 @@ int snmp_table_ids[] = {
 #if 0
   SNMP_DB_ID_SSL,
   SNMP_DB_ID_SSH,
+  SNMP_DB_ID_SQL,
   SNMP_DB_ID_QUOTA,
   SNMP_DB_ID_BAN,
   SNMP_DB_ID_GEOIP,
@@ -192,6 +193,8 @@ static struct snmp_db_info snmp_dbs[] = {
   { SNMP_DB_ID_SSL, -1, "ssl.dat", NULL, NULL, 0 },
 
   { SNMP_DB_ID_SSH, -1, "ssh.dat", NULL, NULL, 0 },
+
+  { SNMP_DB_ID_SQL, -1, "sql.dat", NULL, NULL, 0 },
 
   { SNMP_DB_ID_QUOTA, -1, "quota.dat", NULL, NULL, 0 },
 
@@ -762,7 +765,7 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
   }
 
   db_data = snmp_dbs[db_id].db_data;
-  memcpy(int_value, &(((uint32_t *) db_data)[field_start]), field_len);
+  memmove(int_value, &(((uint32_t *) db_data)[field_start]), field_len);
 
   res = snmp_db_unlock(field);
   if (res < 0) {
@@ -775,8 +778,8 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
   return 0;
 }
 
-int snmp_db_incr_value(unsigned int field, int32_t incr) {
-  uint32_t val;
+int snmp_db_incr_value(pool *p, unsigned int field, int32_t incr) {
+  uint32_t orig_val, new_val;
   int db_id, res;
   void *db_data;
   off_t field_start;
@@ -797,19 +800,41 @@ int snmp_db_incr_value(unsigned int field, int32_t incr) {
   }
 
   db_data = snmp_dbs[db_id].db_data;
-  memcpy(&val, &(((uint32_t *) db_data)[field_start]), field_len);
-  val += incr;
-  memcpy(&(((uint32_t *) db_data)[field_start]), &val, field_len);
+  memmove(&new_val, &(((uint32_t *) db_data)[field_start]), field_len);
+  orig_val = new_val;
+
+  if (orig_val == 0 &&
+      incr < 0) {
+    /* If we are in fact decrementing a value, and that value is
+     * already zero, then do nothing.
+     */
+
+    res = snmp_db_unlock(field);
+    if (res < 0) {
+      return -1;
+    }
+
+    pr_trace_msg(trace_channel, 19,
+      "value already zero for field %s (%d), not decrementing by %ld",
+      snmp_db_get_fieldstr(p, field), field, (long) incr);
+    return 0;
+  }
+
+  new_val += incr;
+  memmove(&(((uint32_t *) db_data)[field_start]), &new_val, field_len);
 
   res = snmp_db_unlock(field);
   if (res < 0) {
     return -1;
   }
 
+  pr_trace_msg(trace_channel, 19,
+    "wrote value %lu (was %lu) for field %s (%d)", (unsigned long) new_val,
+    (unsigned long) orig_val, snmp_db_get_fieldstr(p, field), field);
   return 0;
 }
 
-int snmp_db_reset_value(unsigned int field) {
+int snmp_db_reset_value(pool *p, unsigned int field) {
   uint32_t val;
   int db_id, res;
   void *db_data;
@@ -833,13 +858,15 @@ int snmp_db_reset_value(unsigned int field) {
   db_data = snmp_dbs[db_id].db_data;
 
   val = 0;
-  memcpy(&(((uint32_t *) db_data)[field_start]), &val, field_len);
+  memmove(&(((uint32_t *) db_data)[field_start]), &val, field_len);
 
   res = snmp_db_unlock(field);
   if (res < 0) {
     return -1;
   }
 
+  pr_trace_msg(trace_channel, 19,
+    "reset value to 0 for field %s", snmp_db_get_fieldstr(p, field));
   return 0;
 }
 
