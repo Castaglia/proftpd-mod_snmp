@@ -720,7 +720,7 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
 
         oidlen = iter_var->namelen + 1;
         oid = pcalloc(pkt->pool, oidlen * sizeof(oid_t));
-        memcpy(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
+        memmove(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
 
         mib_idx = snmp_mib_get_idx(oid, oidlen, NULL);
         if (mib_idx < 0) {
@@ -940,7 +940,7 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
 
         oidlen = iter_var->namelen + 1;
         oid = pcalloc(pkt->pool, oidlen * sizeof(oid_t));
-        memcpy(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
+        memmove(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
 
         mib_idx = snmp_mib_get_idx(oid, oidlen, NULL);
         if (mib_idx < 0) {
@@ -1058,7 +1058,7 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
 
         oidlen = iter_var->namelen + 1;
         oid = pcalloc(pkt->pool, oidlen * sizeof(oid_t));
-        memcpy(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
+        memmove(oid, iter_var->name, iter_var->namelen * sizeof(oid_t));
 
         mib_idx = snmp_mib_get_idx(oid, oidlen, NULL);
         if (mib_idx < 0) {
