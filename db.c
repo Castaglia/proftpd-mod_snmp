@@ -322,7 +322,9 @@ int snmp_db_rlock(unsigned int field) {
   }
 
   db_fd = snmp_dbs[db_id].db_fd;
-  get_field_range(field, &(lock.l_start), &(lock.l_len));
+  if (get_field_range(field, &(lock.l_start), &(lock.l_len)) < 0) {
+    return -1;
+  }
 
   pr_trace_msg(trace_channel, 9,
     "attempt #%u to read-lock field %u db ID %d table '%s' "
@@ -400,7 +402,9 @@ int snmp_db_wlock(unsigned int field) {
   }
 
   db_fd = snmp_dbs[db_id].db_fd;
-  get_field_range(field, &(lock.l_start), &(lock.l_len));
+  if (get_field_range(field, &(lock.l_start), &(lock.l_len)) < 0) {
+    return -1;
+  }
 
   pr_trace_msg(trace_channel, 9,
     "attempt #%u to write-lock field %u db ID %d table '%s' "
@@ -478,7 +482,9 @@ int snmp_db_unlock(unsigned int field) {
   }
 
   db_fd = snmp_dbs[db_id].db_fd;
-  get_field_range(field, &(lock.l_start), &(lock.l_len));
+  if (get_field_range(field, &(lock.l_start), &(lock.l_len)) < 0) {
+    return -1;
+  }
 
   pr_trace_msg(trace_channel, 9,
     "attempt #%u to unlock field %u table '%s' (fd %d start %lu len %lu)",
@@ -741,7 +747,9 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
     return -1;
   }
 
-  get_field_range(field, &field_start, NULL);
+  if (get_field_range(field, &field_start, NULL) < 0) {
+    return -1;
+  }
 
   db_data = snmp_dbs[db_id].db_data;
   memcpy(int_value, &(((uint32_t *) db_data)[field_start]), sizeof(int32_t));
@@ -773,7 +781,9 @@ int snmp_db_incr_value(unsigned int field, int32_t incr) {
     return -1;
   }
 
-  get_field_range(field, &field_start, NULL);
+  if (get_field_range(field, &field_start, NULL) < 0) {
+    return -1;
+  }
 
   db_data = snmp_dbs[db_id].db_data;
   memcpy(&val, &(((uint32_t *) db_data)[field_start]), sizeof(uint32_t));
@@ -804,7 +814,9 @@ int snmp_db_reset_value(unsigned int field) {
     return -1;
   }
 
-  get_field_range(field, &field_start, NULL);
+  if (get_field_range(field, &field_start, NULL) < 0) {
+    return -1;
+  }
 
   db_data = snmp_dbs[db_id].db_data;
 
