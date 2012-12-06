@@ -62,7 +62,7 @@ struct snmp_field_info {
   unsigned int field;
   int db_id;
   off_t field_start;
-  off_t field_len;
+  size_t field_len;
   const char *field_name;
 };
 
@@ -226,7 +226,7 @@ static int get_field_db_id(unsigned int field) {
  * values, for the byte-range locking.
  */
 static int get_field_range(unsigned int field, off_t *field_start,
-    off_t *field_len) {
+    size_t *field_len) {
   register unsigned int i;
   int field_idx = -1;
 
@@ -312,6 +312,7 @@ int snmp_db_rlock(unsigned int field) {
   struct flock lock;
   unsigned int nattempts = 1;
   int db_id, db_fd;
+  size_t field_len;
 
   lock.l_type = F_RDLCK;
   lock.l_whence = SEEK_SET;
@@ -322,9 +323,10 @@ int snmp_db_rlock(unsigned int field) {
   }
 
   db_fd = snmp_dbs[db_id].db_fd;
-  if (get_field_range(field, &(lock.l_start), &(lock.l_len)) < 0) {
+  if (get_field_range(field, &(lock.l_start), &field_len) < 0) {
     return -1;
   }
+  lock.l_len = (off_t) field_len;
 
   pr_trace_msg(trace_channel, 9,
     "attempt #%u to read-lock field %u db ID %d table '%s' "
@@ -392,6 +394,7 @@ int snmp_db_wlock(unsigned int field) {
   struct flock lock;
   unsigned int nattempts = 1;
   int db_id, db_fd;
+  size_t field_len;
 
   lock.l_type = F_WRLCK;
   lock.l_whence = SEEK_SET;
@@ -402,9 +405,10 @@ int snmp_db_wlock(unsigned int field) {
   }
 
   db_fd = snmp_dbs[db_id].db_fd;
-  if (get_field_range(field, &(lock.l_start), &(lock.l_len)) < 0) {
+  if (get_field_range(field, &(lock.l_start), &field_len) < 0) {
     return -1;
   }
+  lock.l_len = (off_t) field_len;
 
   pr_trace_msg(trace_channel, 9,
     "attempt #%u to write-lock field %u db ID %d table '%s' "
@@ -472,6 +476,7 @@ int snmp_db_unlock(unsigned int field) {
   struct flock lock;
   unsigned int nattempts = 1;
   int db_id, db_fd;
+  size_t field_len;
 
   lock.l_type = F_UNLCK;
   lock.l_whence = SEEK_SET;
@@ -482,9 +487,10 @@ int snmp_db_unlock(unsigned int field) {
   }
 
   db_fd = snmp_dbs[db_id].db_fd;
-  if (get_field_range(field, &(lock.l_start), &(lock.l_len)) < 0) {
+  if (get_field_range(field, &(lock.l_start), &field_len) < 0) {
     return -1;
   }
+  lock.l_len = (off_t) field_len;
 
   pr_trace_msg(trace_channel, 9,
     "attempt #%u to unlock field %u table '%s' (fd %d start %lu len %lu)",
@@ -692,6 +698,7 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
   void *db_data;
   int db_id, res;
   off_t field_start;
+  size_t field_len;
 
   switch (field) {
     case SNMP_DB_DAEMON_F_SOFTWARE:
@@ -735,6 +742,9 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
         snmp_db_get_fieldstr(p, field));
       return 0;
     }
+
+    default:
+      break;
   }
 
   res = snmp_db_rlock(field);
@@ -747,12 +757,12 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
     return -1;
   }
 
-  if (get_field_range(field, &field_start, NULL) < 0) {
+  if (get_field_range(field, &field_start, &field_len) < 0) {
     return -1;
   }
 
   db_data = snmp_dbs[db_id].db_data;
-  memcpy(int_value, &(((uint32_t *) db_data)[field_start]), sizeof(int32_t));
+  memcpy(int_value, &(((uint32_t *) db_data)[field_start]), field_len);
 
   res = snmp_db_unlock(field);
   if (res < 0) {
@@ -770,6 +780,7 @@ int snmp_db_incr_value(unsigned int field, int32_t incr) {
   int db_id, res;
   void *db_data;
   off_t field_start;
+  size_t field_len;
 
   res = snmp_db_wlock(field);
   if (res < 0) {
@@ -781,14 +792,14 @@ int snmp_db_incr_value(unsigned int field, int32_t incr) {
     return -1;
   }
 
-  if (get_field_range(field, &field_start, NULL) < 0) {
+  if (get_field_range(field, &field_start, &field_len) < 0) {
     return -1;
   }
 
   db_data = snmp_dbs[db_id].db_data;
-  memcpy(&val, &(((uint32_t *) db_data)[field_start]), sizeof(uint32_t));
+  memcpy(&val, &(((uint32_t *) db_data)[field_start]), field_len);
   val += incr;
-  memcpy(&(((uint32_t *) db_data)[field_start]), &val, sizeof(uint32_t));
+  memcpy(&(((uint32_t *) db_data)[field_start]), &val, field_len);
 
   res = snmp_db_unlock(field);
   if (res < 0) {
@@ -803,6 +814,7 @@ int snmp_db_reset_value(unsigned int field) {
   int db_id, res;
   void *db_data;
   off_t field_start;
+  size_t field_len;
 
   res = snmp_db_wlock(field);
   if (res < 0) {
@@ -814,14 +826,14 @@ int snmp_db_reset_value(unsigned int field) {
     return -1;
   }
 
-  if (get_field_range(field, &field_start, NULL) < 0) {
+  if (get_field_range(field, &field_start, &field_len) < 0) {
     return -1;
   }
 
   db_data = snmp_dbs[db_id].db_data;
 
   val = 0;
-  memcpy(&(((uint32_t *) db_data)[field_start]), &val, sizeof(uint32_t));
+  memcpy(&(((uint32_t *) db_data)[field_start]), &val, field_len);
 
   res = snmp_db_unlock(field);
   if (res < 0) {
