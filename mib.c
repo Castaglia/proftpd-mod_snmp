@@ -504,7 +504,7 @@ int snmp_mib_reset_counters(void) {
         snmp_mibs[i].smi_type == SNMP_SMI_COUNTER64) {
       pr_trace_msg(trace_channel, 17, "resetting '%s' counter",
         snmp_mibs[i].instance_name);
-      (void) snmp_db_reset_value(snmp_mibs[i].db_field);
+      (void) snmp_db_reset_value(snmp_pool, snmp_mibs[i].db_field);
     }
   }
 
