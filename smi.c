@@ -121,7 +121,7 @@ struct snmp_var *snmp_smi_alloc_var(pool *p, oid_t *name,
   var->name = pcalloc(var->pool, sizeof(oid_t) * var->namelen);
 
   if (name != NULL) {
-    memcpy(var->name, name, sizeof(oid_t) * var->namelen);
+    memmove(var->name, name, sizeof(oid_t) * var->namelen);
   }
 
   return var;
@@ -241,17 +241,17 @@ struct snmp_var *snmp_smi_dup_var(pool *p, struct snmp_var *src_var) {
       switch (var->smi_type) {
         case SNMP_SMI_INTEGER:
           var->value.integer = palloc(var->pool, var->valuelen);
-          memcpy(var->value.integer, var->value.integer, var->valuelen);
+          memmove(var->value.integer, var->value.integer, var->valuelen);
           break;
 
         case SNMP_SMI_STRING:
           var->value.string = pcalloc(var->pool, var->valuelen);
-          memcpy(var->value.string, var->value.string, var->valuelen);
+          memmove(var->value.string, var->value.string, var->valuelen);
           break;
 
         case SNMP_SMI_OID:
           var->value.oid = palloc(var->pool, var->valuelen);
-          memcpy(var->value.oid, var->value.oid, var->valuelen);
+          memmove(var->value.oid, var->value.oid, var->valuelen);
           break;
 
         default:

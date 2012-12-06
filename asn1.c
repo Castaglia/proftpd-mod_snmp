@@ -153,7 +153,7 @@ static int asn1_read_byte(pool *p, unsigned char **buf, size_t *buflen,
     return -1;
   }
 
-  memcpy(byte, *buf, sizeof(unsigned char));
+  memmove(byte, *buf, sizeof(unsigned char));
   (*buf) += sizeof(unsigned char);
   (*buflen) -= sizeof(unsigned char);
 
@@ -197,7 +197,7 @@ static int asn1_read_len(pool *p, unsigned char **buf, size_t *buflen,
   }
 
   /* First we check the first byte in the buffer, the 'length' byte. */
-  memcpy(&byte, *buf, sizeof(unsigned char));
+  memmove(&byte, *buf, sizeof(unsigned char));
   (*buf) += sizeof(unsigned char);
   (*buflen) -= sizeof(unsigned char);
 
@@ -225,7 +225,7 @@ static int asn1_read_len(pool *p, unsigned char **buf, size_t *buflen,
     }
 
     *asn1_len = 0;
-    memcpy(asn1_len, *buf, (size_t) byte);
+    memmove(asn1_len, *buf, (size_t) byte);
     (*buf) += byte;
     (*buflen) -= byte;
 
@@ -604,7 +604,7 @@ static int asn1_write_byte(unsigned char **buf, size_t *buflen,
     return -1;
   }
 
-  memcpy(*buf, &byte, sizeof(unsigned char));
+  memmove(*buf, &byte, sizeof(unsigned char));
   (*buf) += sizeof(unsigned char);
   (*buflen) -= sizeof(unsigned char);
 
@@ -709,7 +709,7 @@ static int asn1_write_len(unsigned char **buf, size_t *buflen,
       len = (unsigned short) asn1_len;
       len = htons(len);
 
-      memcpy(*buf, &len, sizeof(unsigned short));
+      memmove(*buf, &len, sizeof(unsigned short));
       (*buf) += sizeof(unsigned short);
       (*buflen) -= sizeof(unsigned short);
     }
@@ -743,7 +743,7 @@ static int asn1_write_len(unsigned char **buf, size_t *buflen,
     len = (unsigned short) asn1_len;
     len = htons(len);
 
-    memcpy(*buf, &len, sizeof(unsigned short));
+    memmove(*buf, &len, sizeof(unsigned short));
     (*buf) += sizeof(unsigned short);
     (*buflen) -= sizeof(unsigned short);
   }
@@ -1227,7 +1227,7 @@ int snmp_asn1_write_string(pool *p, unsigned char **buf, size_t *buflen,
     return -1;
   }
 
-  memcpy(*buf, asn1_str, asn1_strlen);
+  memmove(*buf, asn1_str, asn1_strlen);
   (*buf) += asn1_strlen;
   (*buflen) -= asn1_strlen;
 
