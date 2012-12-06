@@ -557,7 +557,7 @@ int snmp_db_unlock(unsigned int field) {
 }
 
 int snmp_db_open(pool *p, int db_id) {
-  int db_fd, xerrno;
+  int db_fd, res, xerrno;
   char *db_path;
   size_t db_datasz;
   void *db_data;
@@ -588,6 +588,12 @@ int snmp_db_open(pool *p, int db_id) {
       "error opening SNMPTable '%s': %s", db_path, strerror(xerrno));
     errno = xerrno;
     return -1;
+  }
+
+  /* Make sure the fd isn't one of the big three. */
+  res = pr_fs_get_usable_fd(db_fd);
+  if (res >= 0) {
+    db_fd = res;
   }
 
   snmp_dbs[db_id].db_fd = db_fd;
