@@ -111,7 +111,7 @@ int snmp_msg_read(pool *p, unsigned char **buf, size_t *buflen,
       "%s messages not currently supported, dropping packet",
       snmp_msg_get_versionstr(*snmp_version));
 
-    res = snmp_db_incr_value(SNMP_DB_SNMP_F_PKTS_DROPPED_TOTAL, 1);
+    res = snmp_db_incr_value(p, SNMP_DB_SNMP_F_PKTS_DROPPED_TOTAL, 1);
     if (res < 0) {
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
         "error incrementing snmp.packetsDroppedTotal: %s", strerror(errno));
