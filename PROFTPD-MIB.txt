@@ -7,7 +7,7 @@ PROFTPD-MIB DEFINITIONS ::= BEGIN
 
 IMPORTS
         enterprises, Unsigned32, TimeTicks, Gauge32, Counter32, IpAddress,
-        MODULE-IDENTITY, OBJECT-TYPE
+        MODULE-IDENTITY, NOTIFICATION-TYPE, OBJECT-TYPE
                 FROM SNMPv2-SMI
 
         DisplayString
