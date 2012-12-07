@@ -677,6 +677,7 @@ int snmp_db_close(pool *p, int db_id) {
     size_t db_datasz;
 
     db_datasz = snmp_dbs[db_id].db_datasz;
+
     if (munmap(db_data, db_datasz) < 0) {
       int xerrno = errno;
 
@@ -756,17 +757,17 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
       break;
   }
 
-  res = snmp_db_rlock(field);
-  if (res < 0) {
-    return -1;
-  }
-
   db_id = get_field_db_id(field);
   if (db_id < 0) {
     return -1;
   }
 
   if (get_field_range(field, &field_start, &field_len) < 0) {
+    return -1;
+  }
+
+  res = snmp_db_rlock(field);
+  if (res < 0) {
     return -1;
   }
 
@@ -791,17 +792,17 @@ int snmp_db_incr_value(pool *p, unsigned int field, int32_t incr) {
   off_t field_start;
   size_t field_len;
 
-  res = snmp_db_wlock(field);
-  if (res < 0) {
-    return -1;
-  }
-
   db_id = get_field_db_id(field);
   if (db_id < 0) {
     return -1;
   }
 
   if (get_field_range(field, &field_start, &field_len) < 0) {
+    return -1;
+  }
+
+  res = snmp_db_wlock(field);
+  if (res < 0) {
     return -1;
   }
 
