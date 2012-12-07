@@ -557,7 +557,7 @@ int snmp_db_unlock(unsigned int field) {
 }
 
 int snmp_db_open(pool *p, int db_id) {
-  int db_fd, res, xerrno;
+  int db_fd, mmap_flags, res, xerrno;
   char *db_path;
   size_t db_datasz;
   void *db_data;
@@ -641,7 +641,17 @@ int snmp_db_open(pool *p, int db_id) {
     return -1;
   }
 
-  db_data = mmap(NULL, db_datasz, PROT_READ|PROT_WRITE, MAP_SHARED, db_fd, 0);
+  mmap_flags = MAP_SHARED;
+#if defined(MAP_ANON)
+  /* FreeBSD, MacOSX, Solaris, others? */
+  mmap_flags |= MAP_ANON;
+
+#elif defined(MAP_ANONYMOUS)
+  /* Linux */
+  mmap_flags |= MAP_ANONYMOUS;
+#endif
+
+  db_data = mmap(NULL, db_datasz, PROT_READ|PROT_WRITE, mmap_flags, db_fd, 0);
   if (db_data == MAP_FAILED) {
     xerrno = errno;
 
@@ -705,7 +715,7 @@ int snmp_db_close(pool *p, int db_id) {
 
 int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
     char **str_value, size_t *str_valuelen) {
-  void *db_data;
+  void *db_data, *field_data;
   int db_id, res;
   off_t field_start;
   size_t field_len;
@@ -772,7 +782,8 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
   }
 
   db_data = snmp_dbs[db_id].db_data;
-  memmove(int_value, &(((uint32_t *) db_data)[field_start]), field_len);
+  field_data = &(((uint32_t *) db_data)[field_start]);
+  memmove(int_value, field_data, field_len);
 
   res = snmp_db_unlock(field);
   if (res < 0) {
@@ -788,7 +799,7 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
 int snmp_db_incr_value(pool *p, unsigned int field, int32_t incr) {
   uint32_t orig_val, new_val;
   int db_id, res;
-  void *db_data;
+  void *db_data, *field_data;
   off_t field_start;
   size_t field_len;
 
@@ -807,7 +818,8 @@ int snmp_db_incr_value(pool *p, unsigned int field, int32_t incr) {
   }
 
   db_data = snmp_dbs[db_id].db_data;
-  memmove(&new_val, &(((uint32_t *) db_data)[field_start]), field_len);
+  field_data = &(((uint32_t *) db_data)[field_start]);
+  memmove(&new_val, field_data, field_len);
   orig_val = new_val;
 
   if (orig_val == 0 &&
@@ -828,7 +840,15 @@ int snmp_db_incr_value(pool *p, unsigned int field, int32_t incr) {
   }
 
   new_val += incr;
-  memmove(&(((uint32_t *) db_data)[field_start]), &new_val, field_len);
+  memmove(field_data, &new_val, field_len);
+
+#if 0
+  res = msync(field_data, field_len, MS_SYNC);
+  if (res < 0) {
+    pr_trace_msg(trace_channel, 1, "msync(2) error for field %s (%d): %s",
+      snmp_db_get_fieldstr(p, field), field, strerror(errno));  
+  }
+#endif
 
   res = snmp_db_unlock(field);
   if (res < 0) {
@@ -844,14 +864,9 @@ int snmp_db_incr_value(pool *p, unsigned int field, int32_t incr) {
 int snmp_db_reset_value(pool *p, unsigned int field) {
   uint32_t val;
   int db_id, res;
-  void *db_data;
+  void *db_data, *field_data;
   off_t field_start;
   size_t field_len;
-
-  res = snmp_db_wlock(field);
-  if (res < 0) {
-    return -1;
-  }
 
   db_id = get_field_db_id(field);
   if (db_id < 0) {
@@ -862,10 +877,16 @@ int snmp_db_reset_value(pool *p, unsigned int field) {
     return -1;
   }
 
+  res = snmp_db_wlock(field);
+  if (res < 0) {
+    return -1;
+  }
+
   db_data = snmp_dbs[db_id].db_data;
+  field_data = &(((uint32_t *) db_data)[field_start]);
 
   val = 0;
-  memmove(&(((uint32_t *) db_data)[field_start]), &val, field_len);
+  memmove(field_data, &val, field_len);
 
   res = snmp_db_unlock(field);
   if (res < 0) {
