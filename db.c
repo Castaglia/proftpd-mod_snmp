@@ -596,6 +596,9 @@ int snmp_db_open(pool *p, int db_id) {
     db_fd = res;
   }
 
+  pr_trace_msg(trace_channel, 19, "opened fd %d for SNMPTable '%s'", db_fd,
+    db_path);
+
   snmp_dbs[db_id].db_fd = db_fd;
   snmp_dbs[db_id].db_path = db_path;
 
@@ -642,19 +645,20 @@ int snmp_db_open(pool *p, int db_id) {
   }
 
   mmap_flags = MAP_SHARED;
+
 #if defined(MAP_ANONYMOUS)
   /* Linux */
   mmap_flags |= MAP_ANONYMOUS;
-
-  /* According to some of the Linux man pages, use of the MAP_ANONYMOUS flag
-   * requires (for some implementations) that the fd be -1, since it will
-   * effectively be ignored.
-   */
   db_fd = -1;
 
 #elif defined(MAP_ANON)
   /* FreeBSD, MacOSX, Solaris, others? */
   mmap_flags |= MAP_ANON;
+  db_fd = -1;
+
+#else
+  (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+    "mmap(2) MAP_ANONYMOUS and MAP_ANON flags not defined");
 #endif
 
   db_data = mmap(NULL, db_datasz, PROT_READ|PROT_WRITE, mmap_flags, db_fd, 0);
@@ -662,8 +666,8 @@ int snmp_db_open(pool *p, int db_id) {
     xerrno = errno;
 
     pr_trace_msg(trace_channel, 1,
-      "error mapping table '%s' size %lu into memory: %s", db_path,
-      (unsigned long) db_datasz, strerror(xerrno));
+      "error mapping table '%s' fd %d size %lu into memory: %s", db_path,
+      db_fd, (unsigned long) db_datasz, strerror(xerrno));
 
     (void) snmp_db_close(p, db_id);
     errno = xerrno;
