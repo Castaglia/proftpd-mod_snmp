@@ -1866,7 +1866,8 @@ sub snmp_v1_get_daemon_conn_counts {
   my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
   my $snmp_community = "public";
 
-  my $timeout_idle = 45;
+  my $delay_nsecs = 45;
+  my $use_delay = 0;
 
   my $config = {
     TraceLog => $log_file,
@@ -1877,7 +1878,6 @@ sub snmp_v1_get_daemon_conn_counts {
 
     AuthUserFile => $auth_user_file,
     AuthGroupFile => $auth_group_file,
-    TimeoutIdle => $timeout_idle + 1,
 
     IfModules => {
       'mod_delay.c' => {
@@ -1977,6 +1977,15 @@ sub snmp_v1_get_daemon_conn_counts {
         $client->quit();
       }
 
+      if ($use_delay) {
+          # Wait for more than 45 secs; that's when the resets are
+          # usually seen
+          if ($ENV{TEST_VERBOSE}) {
+            print STDERR "# Waiting for $delay_nsecs secs\n";
+          }
+          sleep($delay_nsecs);
+      }
+
       ($conn_count, $conn_total) = get_conn_info($agent_port, $snmp_community);
 
       $expected = 0;
@@ -1996,7 +2005,7 @@ sub snmp_v1_get_daemon_conn_counts {
     $wfh->flush();
 
   } else {
-    eval { server_wait($config_file, $rfh, $timeout_idle) };
+    eval { server_wait($config_file, $rfh, $delay_nsecs + 10) };
     if ($@) {
       warn($@);
       exit 1;
