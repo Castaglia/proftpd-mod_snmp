@@ -642,13 +642,19 @@ int snmp_db_open(pool *p, int db_id) {
   }
 
   mmap_flags = MAP_SHARED;
-#if defined(MAP_ANON)
-  /* FreeBSD, MacOSX, Solaris, others? */
-  mmap_flags |= MAP_ANON;
-
-#elif defined(MAP_ANONYMOUS)
+#if defined(MAP_ANONYMOUS)
   /* Linux */
   mmap_flags |= MAP_ANONYMOUS;
+
+  /* According to some of the Linux man pages, use of the MAP_ANONYMOUS flag
+   * requires (for some implementations) that the fd be -1, since it will
+   * effectively be ignored.
+   */
+  db_fd = -1;
+
+#elif defined(MAP_ANON)
+  /* FreeBSD, MacOSX, Solaris, others? */
+  mmap_flags |= MAP_ANON;
 #endif
 
   db_data = mmap(NULL, db_datasz, PROT_READ|PROT_WRITE, mmap_flags, db_fd, 0);
