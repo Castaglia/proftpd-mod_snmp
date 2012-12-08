@@ -41,6 +41,21 @@
 static struct snmp_mib snmp_mibs[] = {
   { { }, 0, 0, NULL, NULL, 0 },
 
+  /* Miscellaneous non-mod_snmp MIBs */
+  { { SNMP_MGMT_SYS_OID_UPTIME, 0 },
+    SNMP_MGMT_SYS_OIDLEN_UPTIME + 1,
+    0,
+    SNMP_MGMT_SYS_MIB_NAME_PREFIX "sysUpTime",
+    SNMP_MGMT_SYS_MIB_NAME_PREFIX "sysUpTime.0",
+    SNMP_SMI_TIMETICKS },
+
+  { { SNMP_SNMP2_TRAP_OID_OID, 0 },
+    SNMP_SNMP2_TRAP_OIDLEN_OID + 1,
+    0,
+    SNMP_SNMP2_TRAP_MIB_NAME_PREFIX "snmpTrapOID",
+    SNMP_SNMP2_TRAP_MIB_NAME_PREFIX "snmpTrapOID.0",
+    SNMP_SMI_OID },
+
   /* Connection MIBs */
   { { SNMP_MIB_CONN_OID_SERVER_NAME, 0 },
     SNMP_MIB_CONN_OIDLEN_SERVER_NAME + 1,
@@ -377,21 +392,6 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "snmp.packetsDroppedTotal",
     SNMP_MIB_NAME_PREFIX "snmp.packetsDroppedTotal.0",
     SNMP_SMI_COUNTER32 },
-
-  /* Miscellaneous non-mod_snmp MIBs */
-  { { SNMP_MGMT_SYS_OID_UPTIME, 0 },
-    SNMP_MGMT_SYS_OIDLEN_UPTIME + 1,
-    0,
-    SNMP_MGMT_SYS_MIB_NAME_PREFIX "sysUpTime",
-    SNMP_MGMT_SYS_MIB_NAME_PREFIX "sysUpTime.0",
-    SNMP_SMI_TIMETICKS },
-
-  { { SNMP_SNMP2_TRAP_OID_OID, 0 },
-    SNMP_SNMP2_TRAP_OIDLEN_OID + 1,
-    0,
-    SNMP_SNMP2_TRAP_MIB_NAME_PREFIX "snmpTrapOID",
-    SNMP_SNMP2_TRAP_MIB_NAME_PREFIX "snmpTrapOID.0",
-    SNMP_SMI_OID },
 
   { { }, 0, 0, NULL, NULL, 0 }
 };
