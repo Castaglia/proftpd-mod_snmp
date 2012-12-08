@@ -577,6 +577,7 @@ static int snmp_agent_handle_get(struct snmp_packet *pkt) {
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
+    pr_netaddr_t *mib_addr = NULL;
     int lacks_instance_id = FALSE;
 
     pr_signals_handle();
@@ -631,7 +632,7 @@ static int snmp_agent_handle_get(struct snmp_packet *pkt) {
      */
     if (resp_var == NULL) { 
       res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int, &mib_str,
-        &mib_strlen);
+        &mib_strlen, &mib_addr);
 
       /* XXX Response with genErr instead? */
       if (res < 0) {
@@ -694,6 +695,7 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
+    pr_netaddr_t *mib_addr = NULL;
 
     pr_signals_handle();
 
@@ -828,7 +830,7 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
         mib->mib_name);
  
       res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int, &mib_str,
-        &mib_strlen);
+        &mib_strlen, &mib_addr);
 
       /* XXX Response with genErr instead? */
       if (res < 0) {
@@ -914,6 +916,7 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
+    pr_netaddr_t *mib_addr = NULL;
 
     pr_signals_handle();
 
@@ -999,7 +1002,7 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
         mib->mib_name);
  
       res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int, &mib_str,
-        &mib_strlen);
+        &mib_strlen, &mib_addr);
 
       /* XXX Response with genErr instead? */
       if (res < 0) {
@@ -1034,6 +1037,7 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
+    pr_netaddr_t *mib_addr = NULL;
 
     mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
       &lacks_instance_id);
@@ -1124,7 +1128,7 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
                 mib->mib_oidlen), mib->mib_name);
 
             res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int,
-              &mib_str, &mib_strlen);
+              &mib_str, &mib_strlen, &mib_addr);
 
             /* XXX Response with genErr instead? */
             if (res < 0) {
@@ -1324,23 +1328,23 @@ static void snmp_agent_write_packet(int sockfd, struct snmp_packet *pkt) {
   }
 }
 
-static int snmp_agent_send_trap(int sockfd, pr_netaddr_t *agent_addr,
-    unsigned char *trap_data, size_t trap_datalen, pr_netaddr_t *trap_addr,
-    const char *trap_community) {
+static int snmp_agent_send_notify(int sockfd, pr_netaddr_t *agent_addr,
+    unsigned char *trap_data, size_t notify_datalen, pr_netaddr_t *notify_addr,
+    const char *notify_community) {
   int res;
   struct snmp_packet *pkt = NULL;
 
   pkt = snmp_packet_create(snmp_pool);
   pkt->snmp_version = SNMP_PROTOCOL_VERSION_2;
-  pkt->community = (char *) trap_community;
+  pkt->community = (char *) notify_community;
   pkt->community_len = strlen(pkt->community);
-  pkt->remote_addr = trap_addr;
+  pkt->remote_addr = notify_addr;
 
   pkt->resp_pdu = snmp_pdu_create(pkt->pool, SNMP_PDU_TRAP_V2);
   pkt->resp_pdu->err_code = 0;
   pkt->resp_pdu->err_idx = 0;
 
-  /* XXX Need to implement, for supporting traps. */
+  /* XXX Need to implement, for supporting notifications (traps). */
 
   /* XXX Generate random long for the request ID; what to use?  rand(3)
    * generates ints, not longs...but random(3) generates longs.
@@ -1370,7 +1374,7 @@ static int snmp_agent_send_trap(int sockfd, pr_netaddr_t *agent_addr,
    */
 
   (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-    "writing SNMP trap for %s, community = '%s', request ID %ld, "
+    "writing SNMP notification for %s, community = '%s', request ID %ld, "
     "request type '%s'", snmp_msg_get_versionstr(pkt->snmp_version),
     pkt->community, pkt->resp_pdu->request_id,
     snmp_pdu_get_request_type_desc(pkt->resp_pdu->request_type));
@@ -1381,7 +1385,7 @@ static int snmp_agent_send_trap(int sockfd, pr_netaddr_t *agent_addr,
     int xerrno = errno;
 
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error writing SNMP trap to UDP packet: %s", strerror(xerrno));
+      "error writing SNMP notification to UDP packet: %s", strerror(xerrno));
 
     destroy_pool(pkt->pool);
     errno = xerrno;
@@ -1394,32 +1398,31 @@ static int snmp_agent_send_trap(int sockfd, pr_netaddr_t *agent_addr,
   return 0;
 }
 
-static void snmp_agent_handle_notifications(int sockfd,
-    pr_netaddr_t *agent_addr) {
+static void snmp_agent_handle_notifys(int sockfd, pr_netaddr_t *agent_addr) {
   int res;
-  unsigned char *trap_data;
-  size_t trap_datalen;
-  const char *trap_community;
-  pr_netaddr_t *trap_addr;
+  unsigned char *notify_data;
+  size_t notify_datalen;
+  const char *notify_community;
+  pr_netaddr_t *notify_addr;
   config_rec *c;
 
-  /* XXX Check the various trap tables.  For any trap value which meets the
-   * trap generation criteria, get the data/len, and send a trap with that
-   * data to the trap-specific address and community.
+  /* XXX Check the various notification tables.  For any notify value which
+   * meets the notification criteria, get the data/len, and send a notification
+   * with that data to the notification-specific address and community.
    */
 
   /* By default, we use the same SNMPCommunity we use for authorizing
    * incoming requests.
    */
-  trap_community = snmp_community;
+  notify_community = snmp_community;
 
   /* XXX For each notifying event, send a separate trap. */
   c = find_config(main_server->conf, CONF_PARAM, "SNMPNotify", FALSE);
   while (c != NULL) {
     pr_signals_handle();
 
-    res = snmp_agent_send_trap(sockfd, agent_addr, trap_data, trap_datalen,
-      trap_addr, trap_community);
+    res = snmp_agent_send_notify(sockfd, agent_addr, notify_data,
+      notify_datalen, notify_addr, notify_community);
 
     c = find_config_next(c, c->next, CONF_PARAM, "SNMPNotify", FALSE);
   }
@@ -1603,7 +1606,7 @@ static void snmp_agent_loop(int sockfd, pr_netaddr_t *agent_addr) {
     tv.tv_sec = 60;
     tv.tv_usec = 0L;
 
-    snmp_agent_handle_notifications(sockfd, agent_addr);
+    snmp_agent_handle_notifys(sockfd, agent_addr);
 
     FD_ZERO(&listenfds);
     FD_SET(sockfd, &listenfds);
