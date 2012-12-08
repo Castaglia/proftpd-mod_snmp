@@ -58,6 +58,9 @@ static const char *snmp_logname = NULL;
 
 static const char *snmp_community = NULL;
 
+/* The list of SNMPNotify receivers/managers to which to send notifications. */
+static array_header *snmp_notifys = NULL;
+
 /* This number defined as the maximum 'max-bindings' value in RFC19105; it's
  * good enough for the default maximum number of variables in a bindings list
  * to process.
@@ -525,28 +528,6 @@ static void snmp_daemonize(const char *daemon_dir) {
   pr_fsio_chdir(daemon_dir, 0);
 }
 
-static unsigned int snmp_agent_add_resp_var(struct snmp_var **head,
-    struct snmp_var **tail, struct snmp_var *var) {
-  unsigned int count = 0;
-  struct snmp_var *iter_var;
-
-  if (*head == NULL) {
-    *head = var;
-  }
-
-  if (*tail != NULL) {
-    (*tail)->next = var;
-  }
-
-  (*tail) = var;
-
-  for (iter_var = *head; iter_var; iter_var = iter_var->next) {
-    count++;
-  }
-
-  return count;
-}
-
 static int snmp_agent_handle_get(struct snmp_packet *pkt) {
   struct snmp_var *iter_var = NULL, *head_var = NULL, *tail_var = NULL;
   unsigned int var_count = 0;
@@ -653,7 +634,7 @@ static int snmp_agent_handle_get(struct snmp_packet *pkt) {
         mib->smi_type, mib_int, mib_str, mib_strlen);
     }
 
-    var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+    var_count = snmp_smi_util_add_list_var(&head_var, &tail_var, resp_var);
   }
 
   pkt->resp_pdu->varlist = head_var;
@@ -851,7 +832,7 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
         mib->smi_type, mib_int, mib_str, mib_strlen);
     }
 
-    var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+    var_count = snmp_smi_util_add_list_var(&head_var, &tail_var, resp_var);
   }
 
   pkt->resp_pdu->varlist = head_var;
@@ -1023,7 +1004,7 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
         mib->smi_type, mib_int, mib_str, mib_strlen);
     }
 
-    var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+    var_count = snmp_smi_util_add_list_var(&head_var, &tail_var, resp_var);
   }
 
   /* Now, deal with the max_repetitions count.  Keep in mind the max_variables
@@ -1168,19 +1149,21 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
 
             resp_var = snmp_smi_create_exception(pkt->pool, end_oid,
               end_oidlen, SNMP_SMI_END_OF_MIB_VIEW);
-            var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+            var_count = snmp_smi_util_add_list_var(&head_var, &tail_var,
+              resp_var);
             break;
           }
 
-          var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+          var_count = snmp_smi_util_add_list_var(&head_var, &tail_var,
+            resp_var);
         }
 
       } else {
-        var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+        var_count = snmp_smi_util_add_list_var(&head_var, &tail_var, resp_var);
       }
 
     } else {
-      var_count = snmp_agent_add_resp_var(&head_var, &tail_var, resp_var);
+      var_count = snmp_smi_util_add_list_var(&head_var, &tail_var, resp_var);
     }
   }
 
@@ -1802,7 +1785,7 @@ MODRET set_snmpnotify(cmd_rec *cmd) {
     CONF_ERROR(cmd, "wrong number of parameters");
   }
 
-  CHECK_CONF(cmd, CONF_ROOT);
+  CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
   /* Separate the port out from the address, if present.
    *
@@ -1810,7 +1793,6 @@ MODRET set_snmpnotify(cmd_rec *cmd) {
    *
    *   [::1]:162
    */
-
   ptr = strrchr(cmd->argv[1], ':');
   if (ptr != NULL) {
     *ptr = '\0';
@@ -1831,8 +1813,8 @@ MODRET set_snmpnotify(cmd_rec *cmd) {
   }
 
   pr_netaddr_set_port(notify_addr, htons(notify_port));
-
   c->argv[0] = notify_addr;
+
   return PR_HANDLED(cmd);
 }
 
@@ -2188,8 +2170,17 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
       break;
 
     case PR_AUTH_BADPWD:
-      snmp_notify_generate(snmp_pool, -1, snmp_community, NULL,
-        SNMP_NOTIFY_FTP_BAD_PASSWD);
+      if (snmp_notifys != NULL) {
+        register unsigned int i;
+        pr_netaddr_t **dst_addrs;
+
+        dst_addrs = snmp_notifys->elts;
+        for (i = 0; i < snmp_notifys->nelts; i++) {
+          snmp_notify_generate(snmp_pool, -1, snmp_community,
+            session.c->local_addr, dst_addrs[i], SNMP_NOTIFY_FTP_BAD_PASSWD);
+        }
+      }
+
       field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
       break;
 
@@ -2679,6 +2670,19 @@ static int snmp_sess_init(void) {
   /* Reseed the random(3) generator. */ 
   srandom((unsigned int) (time(NULL) * getpid())); 
 #endif /* HAVE_RANDOM */
+
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPNotify", FALSE);
+  while (c != NULL) {
+    pr_signals_handle();
+
+    if (snmp_notifys == NULL) {
+      snmp_notifys = make_array(session.pool, 1, sizeof(pr_netaddr_t *));
+    }
+
+    *((pr_netaddr_t **) push_array(snmp_notifys)) = c->argv[0];
+
+    c = find_config_next(c, c->next, CONF_PARAM, "SNMPNotify", FALSE);
+  }
 
   return 0;
 }
