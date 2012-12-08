@@ -33,6 +33,10 @@
 #include "packet.h"
 #include "pdu.h"
 #include "msg.h"
+#include "notify.h"
+
+/* Defaults */
+#define SNMP_DEFAULT_TRAP_PORT		162
 
 /* Agent type/role */
 #define SNMP_AGENT_TYPE_MASTER		1
@@ -1328,6 +1332,18 @@ static void snmp_agent_write_packet(int sockfd, struct snmp_packet *pkt) {
   }
 }
 
+static long snmp_get_request_id(void) {
+  long request_id;
+
+#ifdef HAVE_RANDOM
+  request_id = random();
+#else
+  request_id = rand();
+#endif /* HAVE_RANDOM */
+
+  return request_id;
+}
+
 static int snmp_agent_send_notify(int sockfd, pr_netaddr_t *agent_addr,
     unsigned char *trap_data, size_t notify_datalen, pr_netaddr_t *notify_addr,
     const char *notify_community) {
@@ -1343,17 +1359,10 @@ static int snmp_agent_send_notify(int sockfd, pr_netaddr_t *agent_addr,
   pkt->resp_pdu = snmp_pdu_create(pkt->pool, SNMP_PDU_TRAP_V2);
   pkt->resp_pdu->err_code = 0;
   pkt->resp_pdu->err_idx = 0;
+  pkt->resp_pdu->request_id = snmp_get_request_id();
 
   /* XXX Need to implement, for supporting notifications (traps). */
 
-  /* XXX Generate random long for the request ID; what to use?  rand(3)
-   * generates ints, not longs...but random(3) generates longs.
-   *
-   * Add autoconf check for srandomdev(3), random(3).  Maybe even use this
-   * in the core engine.
-   */
-
-  /* XXX set pkt->resp_pdu->request_id */
   /* XXX set first varbind to sysUptime.0 (1.3.6.1.2.1.1.3.0, TimeTicks)
    *  (defined in RFC 3418).
    *
@@ -1606,7 +1615,12 @@ static void snmp_agent_loop(int sockfd, pr_netaddr_t *agent_addr) {
     tv.tv_sec = 60;
     tv.tv_usec = 0L;
 
+#if 0
+    /* XXX Since we do not yet support notification criteria/thresholds, we
+     * will not yet spontaneously send notifications here.
+     */
     snmp_agent_handle_notifys(sockfd, agent_addr);
+#endif
 
     FD_ZERO(&listenfds);
     FD_SET(sockfd, &listenfds);
@@ -1957,14 +1971,51 @@ MODRET set_snmpmaxvariables(cmd_rec *cmd) {
   return PR_HANDLED(cmd);
 }
 
-/* usage: SNMPNotify type address port [threshold] */
+/* usage: SNMPNotify address[:port]
+ *
+ * XXX In the future, allow specifying of notification types/thresholds
+ */
 MODRET set_snmpnotify(cmd_rec *cmd) {
+  config_rec *c;
+  pr_netaddr_t *notify_addr;
+  int notify_port = SNMP_DEFAULT_TRAP_PORT;
+  char *ptr;
 
-  /* XXX */
+  if (cmd->argc != 2) {
+    CONF_ERROR(cmd, "wrong number of parameters");
+  }
 
-  CHECK_ARGS(cmd, 3);
   CHECK_CONF(cmd, CONF_ROOT);
 
+  /* Separate the port out from the address, if present.
+   *
+   * XXX Make sure we can handle an IPv6 address here, e.g.:
+   *
+   *   [::1]:162
+   */
+
+  ptr = strrchr(cmd->argv[1], ':');
+  if (ptr != NULL) {
+    *ptr = '\0';
+
+    notify_port = atoi(ptr + 1);
+    if (notify_port < 1 ||
+        notify_port > 65535) {
+      CONF_ERROR(cmd, "port must be between 1-65535");
+    }
+  }
+ 
+  c = add_config_param(cmd->argv[0], 1, NULL);
+
+  notify_addr = pr_netaddr_get_addr(c->pool, cmd->argv[1], NULL);
+  if (notify_addr == NULL) {
+    CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unable to resolve '", cmd->argv[1],
+      "': ", strerror(errno), NULL));
+  }
+
+  pr_netaddr_set_port(notify_addr, htons(notify_port));
+
+  c->argv[0] = notify_addr;
   return PR_HANDLED(cmd);
 }
 
@@ -2320,7 +2371,7 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
       break;
 
     case PR_AUTH_BADPWD:
-      /* XXX Send trap here? */
+      snmp_notify_generate(snmp_community, SNMP_NOTIFY_FTP_BAD_PASSWD);
       field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
       break;
 
@@ -2752,6 +2803,11 @@ static int snmp_init(void) {
   endprotoent();
 #endif
 
+#ifdef HAVE_RANDOM
+  /* Seed the random(3) generator. */ 
+  srandom((unsigned int) (time(NULL) * getpid())); 
+#endif /* HAVE_RANDOM */
+
   return 0;
 }
 
@@ -2800,6 +2856,11 @@ static int snmp_sess_init(void) {
       "error incrementing daemon.connectionTotal: %s",
       strerror(errno));
   }
+
+#ifdef HAVE_RANDOM
+  /* Reseed the random(3) generator. */ 
+  srandom((unsigned int) (time(NULL) * getpid())); 
+#endif /* HAVE_RANDOM */
 
   return 0;
 }
