@@ -26,6 +26,7 @@
 
 #include "mod_snmp.h"
 #include "db.h"
+#include "uptime.h"
 
 /* On some platforms, this may not be defined.  On AIX, for example, this
  * symbol is only defined when _NO_PROTO is defined, and _XOPEN_SOURCE is 500.
@@ -37,8 +38,11 @@
 
 #define SNMP_MAX_LOCK_ATTEMPTS		10
 
+/* Note: Not all database IDs are in this list; only those databases which
+ * have on-disk tables are here.  Thus the NOTIFY and CONN database IDs are
+ * explicitly NOT here, as they are ephemeral/synthetic databases anyway.
+ */
 int snmp_table_ids[] = {
-  SNMP_DB_ID_CONN,
   SNMP_DB_ID_DAEMON,
   SNMP_DB_ID_FTP,
   SNMP_DB_ID_SNMP,
@@ -69,6 +73,10 @@ struct snmp_field_info {
 };
 
 static struct snmp_field_info snmp_fields[] = {
+
+  /* Miscellaneous SNMP-related fields */
+  { SNMP_DB_NOTIFY_F_SYS_UPTIME, SNMP_DB_ID_NOTIFY, 0,
+    0, "NOTIFY_F_SYS_UPTIME" },
 
   /* Connection fields */
   { SNMP_DB_CONN_F_SERVER_NAME, SNMP_DB_ID_CONN, 0,
@@ -186,6 +194,9 @@ struct snmp_db_info {
 
 static struct snmp_db_info snmp_dbs[] = {
   { SNMP_DB_ID_UNKNOWN, -1, NULL, NULL, 0 },
+
+  /* This "table" is synthetic; nothing to be persisted to disk. */
+  { SNMP_DB_ID_NOTIFY, -1, "notify.dat", NULL, NULL, 0 },
 
   /* This "table" is comprised purely of values in memory; nothing to be
    * persisted to disk.
@@ -596,13 +607,6 @@ int snmp_db_open(pool *p, int db_id) {
     "opening db ID %d (db root = %s, db name = %s)", db_id, snmp_db_root,
     snmp_dbs[db_id].db_name);
 
-  /* Special case handling of the DB_ID_CONN database; this database does
-   * not exist on disk.
-   */
-  if (db_id == SNMP_DB_ID_CONN) {
-    return 0;
-  }
- 
   db_path = pdircat(p, snmp_db_root, snmp_dbs[db_id].db_name, NULL);
 
   PRIVS_ROOT
@@ -728,13 +732,6 @@ int snmp_db_close(pool *p, int db_id) {
     return -1;
   }
 
-  /* Special case handling of the DB_ID_CONN database; this database does
-   * not exist on disk.
-   */
-  if (db_id == SNMP_DB_ID_CONN) {
-    return 0;
-  }
-
   db_data = snmp_dbs[db_id].db_data;
 
   if (db_data != NULL) {
@@ -775,6 +772,26 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
   size_t field_len;
 
   switch (field) {
+    case SNMP_DB_NOTIFY_F_SYS_UPTIME: {
+      struct timeval start_tv, now_tv;
+      int res;
+
+      /* TimeTicks are in hundredths of seconds since start time. */
+      res = snmp_uptime_get(p, &start_tv);
+      if (res < 0)
+        return -1;
+
+      gettimeofday(&now_tv, NULL);
+
+      *int_value = (int32_t) (((now_tv.tv_sec - start_tv.tv_sec) * 100) +
+        ((now_tv.tv_usec - start_tv.tv_usec) / 10000));
+
+      pr_trace_msg(trace_channel, 19,
+        "read value %lu for field %s", (unsigned long) *int_value,
+        snmp_db_get_fieldstr(p, field));
+      return 0;
+    }
+
     case SNMP_DB_CONN_F_SERVER_NAME:
       errno = ENOSYS;
       return -1;

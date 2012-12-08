@@ -31,27 +31,31 @@
 
 /* Database IDs */
 #define SNMP_DB_ID_UNKNOWN		0
-#define SNMP_DB_ID_CONN			1
-#define SNMP_DB_ID_DAEMON		2
-#define SNMP_DB_ID_FTP			3
-#define SNMP_DB_ID_SNMP			4
-#define SNMP_DB_ID_SSL			5
-#define SNMP_DB_ID_SSH			6
-#define SNMP_DB_ID_SQL			7
-#define SNMP_DB_ID_QUOTA		8
-#define SNMP_DB_ID_BAN			9
-#define SNMP_DB_ID_GEOIP		10
+#define SNMP_DB_ID_NOTIFY		1
+#define SNMP_DB_ID_CONN			2
+#define SNMP_DB_ID_DAEMON		3
+#define SNMP_DB_ID_FTP			4
+#define SNMP_DB_ID_SNMP			5
+#define SNMP_DB_ID_SSL			6
+#define SNMP_DB_ID_SSH			7
+#define SNMP_DB_ID_SQL			8
+#define SNMP_DB_ID_QUOTA		9
+#define SNMP_DB_ID_BAN			10
+#define SNMP_DB_ID_GEOIP		11
 
 extern int snmp_table_ids[];
 
+/* Miscellaneous non-proftpd database "fields" */
+#define SNMP_DB_NOTIFY_F_SYS_UPTIME				1
+
 /* connection database fields */
-#define SNMP_DB_CONN_F_SERVER_NAME				1
-#define SNMP_DB_CONN_F_SERVER_ADDR				2
-#define SNMP_DB_CONN_F_SERVER_PORT				3
-#define SNMP_DB_CONN_F_CLIENT_ADDR				4
-#define SNMP_DB_CONN_F_CLIENT_PORT				5
-#define SNMP_DB_CONN_F_PID					7
-#define SNMP_DB_CONN_F_USER_NAME				8
+#define SNMP_DB_CONN_F_SERVER_NAME				11
+#define SNMP_DB_CONN_F_SERVER_ADDR				12
+#define SNMP_DB_CONN_F_SERVER_PORT				13
+#define SNMP_DB_CONN_F_CLIENT_ADDR				14
+#define SNMP_DB_CONN_F_CLIENT_PORT				15
+#define SNMP_DB_CONN_F_PID					16
+#define SNMP_DB_CONN_F_USER_NAME				17
 
 /* daemon database fields */
 #define SNMP_DB_DAEMON_F_SOFTWARE				101
