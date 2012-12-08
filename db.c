@@ -38,6 +38,7 @@
 #define SNMP_MAX_LOCK_ATTEMPTS		10
 
 int snmp_table_ids[] = {
+  SNMP_DB_ID_CONN,
   SNMP_DB_ID_DAEMON,
   SNMP_DB_ID_FTP,
   SNMP_DB_ID_SNMP,
@@ -68,6 +69,20 @@ struct snmp_field_info {
 };
 
 static struct snmp_field_info snmp_fields[] = {
+
+  /* Connection fields */
+  { SNMP_DB_CONN_F_SERVER_NAME, SNMP_DB_ID_CONN, 0,
+    0, "CONN_F_SERVER_NAME" },
+  { SNMP_DB_CONN_F_SERVER_ADDR, SNMP_DB_ID_CONN, 0,
+    0, "CONN_F_SERVER_ADDR" },
+  { SNMP_DB_CONN_F_SERVER_PORT, SNMP_DB_ID_CONN, 0,
+    0, "CONN_F_SERVER_PORT" },
+  { SNMP_DB_CONN_F_CLIENT_ADDR, SNMP_DB_ID_CONN, 0,
+    0, "CONN_F_CLIENT_ADDR" },
+  { SNMP_DB_CONN_F_PID, SNMP_DB_ID_CONN, 0,
+    0, "CONN_F_PID" },
+  { SNMP_DB_CONN_F_USER_NAME, SNMP_DB_ID_CONN, 0,
+    0, "CONN_F_USER_NAME" },
 
   /* Daemon fields */
   { SNMP_DB_DAEMON_F_SOFTWARE, SNMP_DB_ID_DAEMON, 0,
@@ -171,6 +186,11 @@ struct snmp_db_info {
 
 static struct snmp_db_info snmp_dbs[] = {
   { SNMP_DB_ID_UNKNOWN, -1, NULL, NULL, 0 },
+
+  /* This "table" is comprised purely of values in memory; nothing to be
+   * persisted to disk.
+   */
+  { SNMP_DB_ID_CONN, -1, "conn.dat", NULL, NULL, 0 },
 
   /* Seven numeric fields only in this table: 7 x 4 bytes = 28 bytes */
   { SNMP_DB_ID_DAEMON, -1, "daemon.dat", NULL, NULL, 28 },
@@ -576,6 +596,13 @@ int snmp_db_open(pool *p, int db_id) {
     "opening db ID %d (db root = %s, db name = %s)", db_id, snmp_db_root,
     snmp_dbs[db_id].db_name);
 
+  /* Special case handling of the DB_ID_CONN database; this database does
+   * not exist on disk.
+   */
+  if (db_id == SNMP_DB_ID_CONN) {
+    return 0;
+  }
+ 
   db_path = pdircat(p, snmp_db_root, snmp_dbs[db_id].db_name, NULL);
 
   PRIVS_ROOT
@@ -691,6 +718,13 @@ int snmp_db_close(pool *p, int db_id) {
     return -1;
   }
 
+  /* Special case handling of the DB_ID_CONN database; this database does
+   * not exist on disk.
+   */
+  if (db_id == SNMP_DB_ID_CONN) {
+    return 0;
+  }
+
   db_data = snmp_dbs[db_id].db_data;
 
   if (db_data != NULL) {
@@ -724,13 +758,37 @@ int snmp_db_close(pool *p, int db_id) {
 }
 
 int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
-    char **str_value, size_t *str_valuelen) {
+    char **str_value, size_t *str_valuelen, pr_netaddr_t **addr_value) {
   void *db_data, *field_data;
   int db_id, res;
   off_t field_start;
   size_t field_len;
 
   switch (field) {
+    case SNMP_DB_CONN_F_SERVER_NAME:
+      errno = ENOSYS;
+      return -1;
+
+    case SNMP_DB_CONN_F_SERVER_ADDR:
+      errno = ENOSYS;
+      return -1;
+
+    case SNMP_DB_CONN_F_SERVER_PORT:
+      errno = ENOSYS;
+      return -1;
+
+    case SNMP_DB_CONN_F_CLIENT_ADDR:
+      errno = ENOSYS;
+      return -1;
+
+    case SNMP_DB_CONN_F_PID:
+      errno = ENOSYS;
+      return -1;
+
+    case SNMP_DB_CONN_F_USER_NAME:
+      errno = ENOSYS;
+      return -1;
+
     case SNMP_DB_DAEMON_F_SOFTWARE:
       *str_value = "proftpd";
       *str_valuelen = strlen(*str_value);
