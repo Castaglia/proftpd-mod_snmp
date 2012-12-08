@@ -32,7 +32,7 @@
 #define SNMP_NOTIFY_FTP_BAD_PASSWD	1000
 
 int snmp_notify_generate(pool *p, int sockfd, const char *community,
-  pr_netaddr_t *src_addr, unsigned int notify_id);
+  pr_netaddr_t *src_addr, pr_netaddr_t *dst_addr, unsigned int notify_id);
 long snmp_notify_get_request_id(void);
 void snmp_notify_poll_cond(void);
 
