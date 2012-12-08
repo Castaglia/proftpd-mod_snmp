@@ -36,7 +36,10 @@
 /* Define if you have the <sys/sysinfo.h> header.  */
 #undef HAVE_SYS_SYSINFO_H
 
-/* Define if you hvae the sysctl(3) function.  */
+/* Define if you have the random(3) function.  */
+#undef HAVE_RANDOM
+
+/* Define if you have the sysctl(3) function.  */
 #undef HAVE_SYSCTL
 
 /* Define if you have the sysinfo(2) function.  */
