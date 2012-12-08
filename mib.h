@@ -315,6 +315,12 @@
 /* The longest MIB that we support/define. */
 #define SNMP_MIB_MAX_OIDLEN	14
 
+/* The index at which the sysUpTime OID appears in our MIBs array. */
+#define SNMP_MIB_SYS_UPTIME_IDX		1
+
+/* The index at which the snmpTrapOID OID appears in our MIBs array. */
+#define SNMP_MIB_SNMP2_TRAP_OID_IDX	2
+
 struct snmp_mib {
   oid_t mib_oid[SNMP_MIB_MAX_OIDLEN];
   unsigned int mib_oidlen;
