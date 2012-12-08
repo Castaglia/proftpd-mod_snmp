@@ -1256,187 +1256,6 @@ static int snmp_agent_handle_request(struct snmp_packet *pkt) {
   return res;
 }
 
-static void snmp_agent_write_packet(int sockfd, struct snmp_packet *pkt) {
-  int res;
-  fd_set writefds;
-  struct timeval tv;
-
-  FD_ZERO(&writefds);
-  FD_SET(sockfd, &writefds);
-
-  while (TRUE) {
-    /* XXX Do we really need a timeout, after which we drop this packet? */
-    tv.tv_sec = 15;
-    tv.tv_usec = 0;
-
-    res = select(sockfd + 1, NULL, &writefds, NULL, &tv);
-    if (res < 0) {
-      if (errno == EINTR) {
-        pr_signals_handle();
-        continue;
-      }
-    }
-
-    break;
-  }
-
-  if (res > 0) {
-    if (FD_ISSET(sockfd, &writefds)) { 
-      pr_trace_msg(trace_channel, 3,
-        "sending %lu UDP message bytes to %s#%u",
-        (unsigned long) pkt->resp_datalen,
-        pr_netaddr_get_ipstr(pkt->remote_addr),
-        ntohs(pr_netaddr_get_port(pkt->remote_addr)));
-
-      res = sendto(sockfd, pkt->resp_data, pkt->resp_datalen, 0,
-        pr_netaddr_get_sockaddr(pkt->remote_addr),
-        pr_netaddr_get_sockaddr_len(pkt->remote_addr));
-      if (res < 0) {
-        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-          "error sending %u UDP message bytes to %s#%u: %s",
-          (unsigned int) pkt->resp_datalen,
-          pr_netaddr_get_ipstr(pkt->remote_addr),
-          ntohs(pr_netaddr_get_port(pkt->remote_addr)), strerror(errno));
-
-      } else {
-        pr_trace_msg(trace_channel, 3,
-          "sent %d UDP message bytes to %s#%u", res,
-          pr_netaddr_get_ipstr(pkt->remote_addr),
-          ntohs(pr_netaddr_get_port(pkt->remote_addr)));
-
-        res = snmp_db_incr_value(pkt->pool, SNMP_DB_SNMP_F_PKTS_SENT_TOTAL, 1);
-        if (res < 0) {
-          (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-            "error incrementing SNMP database for "
-            "snmp.packetsSentTotal: %s", strerror(errno));
-        }
-      }
-    }
-
-  } else {
-    if (res == 0) {
-      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "dropping response after waiting %u secs for available socket space",
-        (unsigned int) tv.tv_sec);
-
-    } else {
-      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "dropping response due to select(2) failure: %s", strerror(errno));
-    }
-
-    res = snmp_db_incr_value(pkt->pool, SNMP_DB_SNMP_F_PKTS_DROPPED_TOTAL, 1);
-    if (res < 0) {
-      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "error incrementing snmp.packetsDroppedTotal: %s", strerror(errno));
-    }
-  }
-}
-
-static long snmp_get_request_id(void) {
-  long request_id;
-
-#ifdef HAVE_RANDOM
-  request_id = random();
-#else
-  request_id = rand();
-#endif /* HAVE_RANDOM */
-
-  return request_id;
-}
-
-static int snmp_agent_send_notify(int sockfd, pr_netaddr_t *agent_addr,
-    unsigned char *trap_data, size_t notify_datalen, pr_netaddr_t *notify_addr,
-    const char *notify_community) {
-  int res;
-  struct snmp_packet *pkt = NULL;
-
-  pkt = snmp_packet_create(snmp_pool);
-  pkt->snmp_version = SNMP_PROTOCOL_VERSION_2;
-  pkt->community = (char *) notify_community;
-  pkt->community_len = strlen(pkt->community);
-  pkt->remote_addr = notify_addr;
-
-  pkt->resp_pdu = snmp_pdu_create(pkt->pool, SNMP_PDU_TRAP_V2);
-  pkt->resp_pdu->err_code = 0;
-  pkt->resp_pdu->err_idx = 0;
-  pkt->resp_pdu->request_id = snmp_get_request_id();
-
-  /* XXX Need to implement, for supporting notifications (traps). */
-
-  /* XXX set first varbind to sysUptime.0 (1.3.6.1.2.1.1.3.0, TimeTicks)
-   *  (defined in RFC 3418).
-   *
-   */
-
-  /* XXX set second varbind to snmpTrapOID.0 (1.3.6.1.6.3.1.1.4.1.0, OID)
-   *  (defined in RFC 3418).
-   *
-   */
-
-  /* XXX set third varbind to snmpTrapAddress.0 (1.3.6.1.6.3.18.13.0, IpAddress)
-   *  (defined in RFC 2576).
-   *
-   * This indicates the sender's IpAddress (SNMP_SMI_IPADDR).
-   *
-   * This varbind CAN be added by proxies, but only if it doesn't already
-   * appear in the varbind list.  So just add it ourselves.
-   */
-
-  (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-    "writing SNMP notification for %s, community = '%s', request ID %ld, "
-    "request type '%s'", snmp_msg_get_versionstr(pkt->snmp_version),
-    pkt->community, pkt->resp_pdu->request_id,
-    snmp_pdu_get_request_type_desc(pkt->resp_pdu->request_type));
-
-  res = snmp_msg_write(pkt->pool, &(pkt->resp_data), &(pkt->resp_datalen),
-    pkt->community, pkt->community_len, pkt->snmp_version, pkt->resp_pdu);
-  if (res < 0) {
-    int xerrno = errno;
-
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error writing SNMP notification to UDP packet: %s", strerror(xerrno));
-
-    destroy_pool(pkt->pool);
-    errno = xerrno;
-    return -1;
-  }
-
-  snmp_agent_write_packet(sockfd, pkt);
-  destroy_pool(pkt->pool);
-
-  return 0;
-}
-
-static void snmp_agent_handle_notifys(int sockfd, pr_netaddr_t *agent_addr) {
-  int res;
-  unsigned char *notify_data;
-  size_t notify_datalen;
-  const char *notify_community;
-  pr_netaddr_t *notify_addr;
-  config_rec *c;
-
-  /* XXX Check the various notification tables.  For any notify value which
-   * meets the notification criteria, get the data/len, and send a notification
-   * with that data to the notification-specific address and community.
-   */
-
-  /* By default, we use the same SNMPCommunity we use for authorizing
-   * incoming requests.
-   */
-  notify_community = snmp_community;
-
-  /* XXX For each notifying event, send a separate trap. */
-  c = find_config(main_server->conf, CONF_PARAM, "SNMPNotify", FALSE);
-  while (c != NULL) {
-    pr_signals_handle();
-
-    res = snmp_agent_send_notify(sockfd, agent_addr, notify_data,
-      notify_datalen, notify_addr, notify_community);
-
-    c = find_config_next(c, c->next, CONF_PARAM, "SNMPNotify", FALSE);
-  }
-}
-
 static int snmp_agent_handle_packet(int sockfd) {
   int nbytes, res;
   struct sockaddr_in from_sockaddr;
@@ -1567,7 +1386,7 @@ static int snmp_agent_handle_packet(int sockfd) {
     return -1;
   }
 
-  snmp_agent_write_packet(sockfd, pkt);
+  snmp_packet_write(snmp_pool, sockfd, pkt);
 
   destroy_pool(pkt->pool);
   return 0;
@@ -1615,12 +1434,10 @@ static void snmp_agent_loop(int sockfd, pr_netaddr_t *agent_addr) {
     tv.tv_sec = 60;
     tv.tv_usec = 0L;
 
-#if 0
-    /* XXX Since we do not yet support notification criteria/thresholds, we
-     * will not yet spontaneously send notifications here.
+    /* To implement notification criteria/thresholds, we poll for the
+     * necessary conditions here.
      */
-    snmp_agent_handle_notifys(sockfd, agent_addr);
-#endif
+    snmp_notify_poll_cond();
 
     FD_ZERO(&listenfds);
     FD_SET(sockfd, &listenfds);
@@ -2371,7 +2188,8 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
       break;
 
     case PR_AUTH_BADPWD:
-      snmp_notify_generate(snmp_community, SNMP_NOTIFY_FTP_BAD_PASSWD);
+      snmp_notify_generate(snmp_pool, -1, snmp_community, NULL,
+        SNMP_NOTIFY_FTP_BAD_PASSWD);
       field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
       break;
 
