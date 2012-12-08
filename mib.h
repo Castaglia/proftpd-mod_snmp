@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp MIB
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +20,6 @@
  * give permission to link this program with OpenSSL, and distribute the
  * resulting executable, without including the source code for OpenSSL in the
  * source distribution.
- *
- * $Id$
  */
 
 #include "mod_snmp.h"
@@ -29,6 +27,31 @@
 
 #ifndef MOD_SNMP_MIB_H
 #define MOD_SNMP_MIB_H
+
+/* SNMPv2-MIB
+ *
+ * .iso.org.dod.internet.mgmt.mib-2.system
+ *   1   3   6      1     2     1     1
+ *
+ * .iso.org.dod.internet.snmpV2.snmpModules.snmpMIB.snmpMIBObjects.snmpTrap
+ *   1   3   6      1      6        3          1          1           4
+ */
+
+#define SNMP_MGMT_SYS_OID_BASE		1, 3, 6, 1, 2, 1, 1
+#define SNMP_MGMT_SYS_OID_BASELEN	7
+
+#define SNMP_MGMT_SYS_MIB_NAME_PREFIX	"mgmt.mib-2.system."
+
+#define SNMP_MGMT_SYS_OID_UPTIME	SNMP_MGMT_SYS_OID_BASE, 1
+#define SNMP_MGMT_SYS_OIDLEN_UPTIME	SNMP_MGMT_SYS_OID_BASELEN + 1
+
+#define SNMP_SNMP2_TRAP_OID_BASE	1, 3, 6, 1, 6, 3, 1, 1, 4
+#define SNMP_SNMP2_TRAP_OID_BASELEN	9
+
+#define SNMP_SNMP2_TRAP_MIB_NAME_PREFIX	"snmpV2.snmpModules.snmpMIB.snmpMIBObjects.snmpTrap."
+
+#define SNMP_SNMP2_TRAP_OID_OID		SNMP_SNMP2_TRAP_OID_BASE, 1
+#define SNMP_SNMP2_TRAP_OIDLEN_OID	SNMP_SNMP2_TRAP_OID_BASELEN + 1
 
 /* PROFTPD-MIB
  *

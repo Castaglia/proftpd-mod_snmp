@@ -20,8 +20,6 @@
  * give permission to link this program with OpenSSL, and distribute the
  * resulting executable, without including the source code for OpenSSL in the
  * source distribution.
- *
- * $Id$
  */
 
 #include "mod_snmp.h"
@@ -339,7 +337,7 @@ static struct snmp_mib snmp_mibs[] = {
   /* ftp.notifications MIBs */
   { { SNMP_MIB_FTP_NOTIFICATIONS_OID_LOGIN_BAD_PASSWORD, 0 },
     SNMP_MIB_FTP_NOTIFICATIONS_OIDLEN_LOGIN_BAD_PASSWORD + 1,
-    SNMP_DB_CONN_F_USER_NAME,
+    0,
     SNMP_MIB_NAME_PREFIX "ftp.notifications.loginBadPassword",
     SNMP_MIB_NAME_PREFIX "ftp.notifications.loginBadPassword.0",
     SNMP_SMI_COUNTER32 },
@@ -379,6 +377,21 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "snmp.packetsDroppedTotal",
     SNMP_MIB_NAME_PREFIX "snmp.packetsDroppedTotal.0",
     SNMP_SMI_COUNTER32 },
+
+  /* Miscellaneous non-mod_snmp MIBs */
+  { { SNMP_MGMT_SYS_OID_UPTIME, 0 },
+    SNMP_MGMT_SYS_OIDLEN_UPTIME + 1,
+    0,
+    SNMP_MGMT_SYS_MIB_NAME_PREFIX "sysUpTime",
+    SNMP_MGMT_SYS_MIB_NAME_PREFIX "sysUpTime.0",
+    SNMP_SMI_TIMETICKS },
+
+  { { SNMP_SNMP2_TRAP_OID_OID, 0 },
+    SNMP_SNMP2_TRAP_OIDLEN_OID + 1,
+    0,
+    SNMP_SNMP2_TRAP_MIB_NAME_PREFIX "snmpTrapOID",
+    SNMP_SNMP2_TRAP_MIB_NAME_PREFIX "snmpTrapOID.0",
+    SNMP_SMI_OID },
 
   { { }, 0, 0, NULL, NULL, 0 }
 };
