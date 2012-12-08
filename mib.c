@@ -43,6 +43,63 @@
 static struct snmp_mib snmp_mibs[] = {
   { { }, 0, 0, NULL, NULL, 0 },
 
+  /* Connection MIBs */
+  { { SNMP_MIB_CONN_OID_SERVER_NAME, 0 },
+    SNMP_MIB_CONN_OIDLEN_SERVER_NAME + 1,
+    SNMP_DB_CONN_F_SERVER_NAME,
+    SNMP_MIB_NAME_PREFIX "connection.serverName",
+    SNMP_MIB_NAME_PREFIX "connection.serverName.0",
+    SNMP_SMI_STRING },
+
+  { { SNMP_MIB_CONN_OID_SERVER_ADDR_TYPE, 0 },
+    SNMP_MIB_CONN_OIDLEN_SERVER_ADDR_TYPE + 1,
+    SNMP_DB_CONN_F_SERVER_ADDR,
+    SNMP_MIB_NAME_PREFIX "connection.serverAddressType",
+    SNMP_MIB_NAME_PREFIX "connection.serverAddressType.0",
+    SNMP_SMI_INTEGER },
+
+  { { SNMP_MIB_CONN_OID_SERVER_ADDR, 0 },
+    SNMP_MIB_CONN_OIDLEN_SERVER_ADDR + 1,
+    SNMP_DB_CONN_F_SERVER_ADDR,
+    SNMP_MIB_NAME_PREFIX "connection.serverAddress",
+    SNMP_MIB_NAME_PREFIX "connection.serverAddress.0",
+    SNMP_SMI_IPADDR },
+
+  { { SNMP_MIB_CONN_OID_SERVER_PORT, 0 },
+    SNMP_MIB_CONN_OIDLEN_SERVER_PORT + 1,
+    SNMP_DB_CONN_F_SERVER_PORT,
+    SNMP_MIB_NAME_PREFIX "connection.serverPort",
+    SNMP_MIB_NAME_PREFIX "connection.serverPort.0",
+    SNMP_SMI_INTEGER },
+
+  { { SNMP_MIB_CONN_OID_CLIENT_ADDR_TYPE, 0 },
+    SNMP_MIB_CONN_OIDLEN_CLIENT_ADDR_TYPE + 1,
+    SNMP_DB_CONN_F_CLIENT_ADDR,
+    SNMP_MIB_NAME_PREFIX "connection.clientAddressType",
+    SNMP_MIB_NAME_PREFIX "connection.clientAddressType.0",
+    SNMP_SMI_INTEGER },
+
+  { { SNMP_MIB_CONN_OID_CLIENT_ADDR, 0 },
+    SNMP_MIB_CONN_OIDLEN_CLIENT_ADDR + 1,
+    SNMP_DB_CONN_F_CLIENT_ADDR,
+    SNMP_MIB_NAME_PREFIX "connection.clientAddress",
+    SNMP_MIB_NAME_PREFIX "connection.clientAddress.0",
+    SNMP_SMI_IPADDR },
+
+  { { SNMP_MIB_CONN_OID_PID, 0 },
+    SNMP_MIB_CONN_OIDLEN_PID + 1,
+    SNMP_DB_CONN_F_PID,
+    SNMP_MIB_NAME_PREFIX "connection.processId",
+    SNMP_MIB_NAME_PREFIX "connection.processId.0",
+    SNMP_SMI_INTEGER },
+
+  { { SNMP_MIB_CONN_OID_USER_NAME, 0 },
+    SNMP_MIB_CONN_OIDLEN_USER_NAME + 1,
+    SNMP_DB_CONN_F_USER_NAME,
+    SNMP_MIB_NAME_PREFIX "connection.userName",
+    SNMP_MIB_NAME_PREFIX "connection.userName.0",
+    SNMP_SMI_STRING },
+
   /* Daemon MIBs */
   { { SNMP_MIB_DAEMON_OID_SOFTWARE, 0 },
     SNMP_MIB_DAEMON_OIDLEN_SOFTWARE + 1, 
@@ -277,6 +334,14 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_DB_FTP_TIMEOUTS_F_STALLED_TOTAL,
     SNMP_MIB_NAME_PREFIX "ftp.timeouts.stalledTimeoutTotal",
     SNMP_MIB_NAME_PREFIX "ftp.timeouts.stalledTimeoutTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  /* ftp.notifications MIBs */
+  { { SNMP_MIB_FTP_NOTIFICATIONS_OID_LOGIN_BAD_PASSWORD, 0 },
+    SNMP_MIB_FTP_NOTIFICATIONS_OIDLEN_LOGIN_BAD_PASSWORD + 1,
+    SNMP_DB_CONN_F_USER_NAME,
+    SNMP_MIB_NAME_PREFIX "ftp.notifications.loginBadPassword",
+    SNMP_MIB_NAME_PREFIX "ftp.notifications.loginBadPassword.0",
     SNMP_SMI_COUNTER32 },
 
   /* snmp MIBs */
