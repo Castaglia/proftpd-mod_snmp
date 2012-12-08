@@ -656,3 +656,25 @@ int snmp_smi_write_vars(pool *p, unsigned char **buf, size_t *buflen,
   return 0;
 }
 
+unsigned int snmp_smi_util_add_list_var(struct snmp_var **head,
+    struct snmp_var **tail, struct snmp_var *var) {
+  unsigned int count = 0;
+  struct snmp_var *iter_var;
+
+  if (*head == NULL) {
+    *head = var;
+  }
+
+  if (*tail != NULL) {
+    (*tail)->next = var;
+  }
+
+  (*tail) = var;
+
+  for (iter_var = *head; iter_var; iter_var = iter_var->next) {
+    count++;
+  }
+
+  return count;
+}
+

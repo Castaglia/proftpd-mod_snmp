@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp SMI routines
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -105,5 +105,8 @@ int snmp_smi_read_vars(pool *p, unsigned char **buf, size_t *buflen,
     struct snmp_var **varlist, int snmp_version);
 int snmp_smi_write_vars(pool *p, unsigned char **buf, size_t *buflen,
     struct snmp_var *varlist, int snmp_version);
+
+unsigned int snmp_smi_util_add_list_var(struct snmp_var **head,
+  struct snmp_var **tail, struct snmp_var *var);
 
 #endif
