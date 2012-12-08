@@ -673,6 +673,16 @@ int snmp_db_open(pool *p, int db_id) {
 
   mmap_flags = MAP_SHARED;
 
+  /* Make sure to set the fd to -1 if MAP_ANON(YMOUS) is used.  By definition,
+   * anonymous mapped memory does not need (or want) a valid file backing
+   * store; some implementations will not do what is expected when anonymous
+   * memory is requested AND a valid fd is passed in.
+   *
+   * However, we want to keep a valid fd open anyway, for later use by
+   * fcntl(2) for byte range locking; we simply don't use the valid fd for
+   * the mmap(2) call.
+   */
+
 #if defined(MAP_ANONYMOUS)
   /* Linux */
   mmap_flags |= MAP_ANONYMOUS;
