@@ -97,6 +97,9 @@ struct snmp_var *snmp_smi_create_int(pool *p, oid_t *name, unsigned int namelen,
   unsigned char smi_type, int32_t value);
 struct snmp_var *snmp_smi_create_string(pool *p, oid_t *name,
   unsigned int namelen, unsigned char smi_type, char *value, size_t valuelen);
+struct snmp_var *snmp_smi_create_oid(pool *p, oid_t *name,
+  unsigned int namelen, unsigned char smi_type, oid_t *value,
+  unsigned int valuelen);
 struct snmp_var *snmp_smi_create_exception(pool *p, oid_t *name,
   unsigned int namelen, unsigned char smi_type);
 struct snmp_var *snmp_smi_dup_var(pool *p, struct snmp_var *var);

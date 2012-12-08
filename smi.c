@@ -194,6 +194,33 @@ struct snmp_var *snmp_smi_create_string(pool *p, oid_t *name,
   return var;
 }
 
+struct snmp_var *snmp_smi_create_oid(pool *p, oid_t *name,
+    unsigned int namelen, unsigned char smi_type, oid_t *value,
+    unsigned int valuelen) {
+  struct snmp_var *var;
+
+  if (value == NULL) {
+    errno = EINVAL;
+    return NULL;
+  }
+
+  if (smi_type != SNMP_SMI_OID) {
+    errno = EINVAL;
+    return NULL;
+  }
+
+  var = snmp_smi_alloc_var(p, name, namelen);
+  var->valuelen = valuelen;
+  var->value.oid = palloc(var->pool, var->valuelen);
+  memmove(var->value.oid, value, var->valuelen);
+  var->smi_type = smi_type;
+
+  pr_trace_msg(trace_channel, 19,
+    "created SMI variable %s, value %s", snmp_smi_get_varstr(p, smi_type),
+    snmp_asn1_get_oidstr(p, value, valuelen));
+  return var;
+}
+
 struct snmp_var *snmp_smi_create_exception(pool *p, oid_t *name,
     unsigned int namelen, unsigned char smi_type) {
   struct snmp_var *var;
@@ -233,25 +260,25 @@ struct snmp_var *snmp_smi_dup_var(pool *p, struct snmp_var *src_var) {
 
     pr_signals_handle();
 
-    var = snmp_smi_alloc_var(p, src_var->name, src_var->namelen);
-    var->smi_type = src_var->smi_type;
-    var->valuelen = src_var->valuelen;
+    var = snmp_smi_alloc_var(p, iter_var->name, iter_var->namelen);
+    var->smi_type = iter_var->smi_type;
+    var->valuelen = iter_var->valuelen;
 
     if (var->valuelen > 0) {
       switch (var->smi_type) {
         case SNMP_SMI_INTEGER:
           var->value.integer = palloc(var->pool, var->valuelen);
-          memmove(var->value.integer, var->value.integer, var->valuelen);
+          memmove(var->value.integer, iter_var->value.integer, var->valuelen);
           break;
 
         case SNMP_SMI_STRING:
           var->value.string = pcalloc(var->pool, var->valuelen);
-          memmove(var->value.string, var->value.string, var->valuelen);
+          memmove(var->value.string, iter_var->value.string, var->valuelen);
           break;
 
         case SNMP_SMI_OID:
           var->value.oid = palloc(var->pool, var->valuelen);
-          memmove(var->value.oid, var->value.oid, var->valuelen);
+          memmove(var->value.oid, iter_var->value.oid, var->valuelen);
           break;
 
         default:
