@@ -6,12 +6,15 @@ PROFTPD-MIB DEFINITIONS ::= BEGIN
 --
 
 IMPORTS
-        enterprises, Unsigned32, TimeTicks, Gauge32, Counter32, IpAddress,
+        enterprises, Unsigned32, TimeTicks, Gauge32, Counter32,
         MODULE-IDENTITY, NOTIFICATION-TYPE, OBJECT-TYPE
                 FROM SNMPv2-SMI
 
         DisplayString
-                FROM SNMPv2-TC;
+                FROM SNMPv2-TC
+
+        InetAddressType, InetAddress, InetPortNumber
+                FROM INET-ADDRESS-MIB;
 
 proftpd OBJECT IDENTIFIER ::= { enterprises 17852 }
 modules OBJECT IDENTIFIER ::= { proftpd 2 }
@@ -28,27 +31,92 @@ snmpModule MODULE-IDENTITY
                 file transfer server. See http://www.proftpd.org/."
 
     REVISION      "1110130000Z"
-    DESCRIPTION
-                "Move to SMIv2. Prepare to split into proxy/squid."
-    REVISION      "9901010000Z"
-    DESCRIPTION
-                "Added objects and corrected asn.1 syntax and
-                descriptions."
     ::= { modules 2 }
 
 --
 -- OID Assignments
 --
+        connection      OBJECT IDENTIFIER ::= { snmpModule 0 }
 
         daemon          OBJECT IDENTIFIER ::= { snmpModule 1 }
+        notifications   OBJECT IDENTIFIER ::= { daemon 1 }
 
         ftp             OBJECT IDENTIFIER ::= { snmpModule 2 }
         sessions        OBJECT IDENTIFIER ::= { ftp 1 }
         logins          OBJECT IDENTIFIER ::= { ftp 2 }
         dataTransfers   OBJECT IDENTIFIER ::= { ftp 3 }
         timeouts        OBJECT IDENTIFIER ::= { ftp 4 }
+        notifications   OBJECT IDENTIFIER ::= { ftp 5 }
 
         snmp            OBJECT IDENTIFIER ::= { snmpModule 3 }
+
+--
+-- connection arc
+--
+
+        serverName OBJECT-TYPE
+            SYNTAX DisplayString
+            MAX-ACCESS accessible-for-notify
+            STATUS current
+            DESCRIPTION
+                " ServerName of server to which client connected "
+        ::= { connection 1 }
+
+        serverAddressType OBJECT-TYPE
+            SYNTAX InetAddressType
+            MAX-ACCESS accessible-for-notify
+            STATUS current
+            DESCRIPTION
+                " IP address type of server to which client connected "
+        ::= { connection 2 }
+
+        serverAddress OBJECT-TYPE
+            SYNTAX InetAddress
+            MAX-ACCESS accessible-for-notify
+            STATUS current
+            DESCRIPTION
+                " IP address of server to which client connected "
+        ::= { connection 3 }
+
+        serverPort OBJECT-TYPE
+            SYNTAX InetPortNumber
+            MAX-ACCESS accessible-for-notify
+            STATUS current
+            DESCRIPTION
+                " Port of server to which client connected "
+        ::= { connection 4 }
+
+        clientAddressType OBJECT-TYPE
+            SYNTAX InetAddressType
+            MAX-ACCESS accessible-for-notify
+            STATUS current
+            DESCRIPTION
+                " IP address type of connected client "
+        ::= { connection 5 }
+
+        clientAddress OBJECT-TYPE
+            SYNTAX InetAddress
+            MAX-ACCESS accessible-for-notify
+            STATUS current
+            DESCRIPTION
+                " IP address of connected client "
+        ::= { connection 6 }
+
+        processId OBJECT-TYPE
+            SYNTAX Unsigned32
+            MAX-ACCESS accessible-for-notify
+            STATUS current
+            DESCRIPTION
+                " ID of process handling the client/server connection "
+        ::= { connection 7 }
+
+        userName OBJECT-TYPE
+            SYNTAX DisplayString
+            MAX-ACCESS accessible-for-notify
+            STATUS current
+            DESCRIPTION
+                " User name for connecting client "
+        ::= { connection 8 }
 
 --
 -- daemon arc
@@ -142,9 +210,16 @@ snmpModule MODULE-IDENTITY
         ::= { daemon 11 }
 
 --
+-- daemon.notifications arc
+--
+
+--
 -- ftp arc
 --
 
+--
+-- ftp.sessions arc
+--
         sessionCount OBJECT-TYPE
             SYNTAX Gauge32
             MAX-ACCESS read-only
@@ -169,6 +244,9 @@ snmpModule MODULE-IDENTITY
                 " Total number of invalid FTP commands seen "
         ::= { sessions 3 }
 
+--
+-- ftp.logins arc
+--
         loginTotal OBJECT-TYPE
             SYNTAX Counter32
             MAX-ACCESS read-only
@@ -225,6 +303,9 @@ snmpModule MODULE-IDENTITY
                 " Total number of anonymous FTP logins "
         ::= { logins 7 }
 
+--
+-- ftp.dataTransfers arc
+--
         dirListTotal OBJECT-TYPE
             SYNTAX Counter32
             MAX-ACCESS read-only
@@ -289,6 +370,9 @@ snmpModule MODULE-IDENTITY
                 " Total number of KB downloaded via FTP "
         ::= { dataTransfers 8 }
 
+--
+-- ftp.timeouts arc
+--
         idleTimeoutTotal OBJECT-TYPE
             SYNTAX Counter32
             MAX-ACCESS read-only
@@ -320,6 +404,30 @@ snmpModule MODULE-IDENTITY
             DESCRIPTION
                 " Total number of times TimeoutStalled was reached "
         ::= { timeouts 4 }
+
+--
+-- ftp.notifications arc
+--
+
+        loginBadPassword NOTIFICATION-TYPE
+            OBJECTS { serverName,
+                      serverAddressType,
+                      serverAddress,
+                      serverPort,
+                      clientAddressType,
+                      clientAddress,
+                      processId,
+                      userName }
+            STATUS  current
+            DESCRIPTION
+                " Notification of a client using a bad password "
+        ::= { notifications 1 }
+
+--      MaxClients
+--      MaxClientsPerClass
+--      MaxClientsPerHost
+--      MaxClientsPerUser
+--      MaxHostsPerUser
 
 --
 -- snmp arc
