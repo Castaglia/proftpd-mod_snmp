@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp packet routines
- * Copyright (c) 2008-2011 TJ Saunders
+ * Copyright (c) 2008-2012 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,9 @@
 
 #include "mod_snmp.h"
 #include "packet.h"
+#include "db.h"
+
+static const char *trace_channel = "snmp";
 
 struct snmp_packet *snmp_packet_create(pool *p) {
   struct snmp_packet *pkt;
@@ -48,4 +51,80 @@ struct snmp_packet *snmp_packet_create(pool *p) {
   pkt->resp_data = palloc(sub_pool, pkt->resp_datalen);
 
   return pkt;
+}
+
+void snmp_packet_write(pool *p, int sockfd, struct snmp_packet *pkt) {
+  int res;
+  fd_set writefds;
+  struct timeval tv;
+
+  FD_ZERO(&writefds);
+  FD_SET(sockfd, &writefds);
+
+  while (TRUE) {
+    /* XXX Do we really need a timeout, after which we drop this packet? */
+    tv.tv_sec = 15;
+    tv.tv_usec = 0;
+
+    res = select(sockfd + 1, NULL, &writefds, NULL, &tv);
+    if (res < 0) {
+      if (errno == EINTR) {
+        pr_signals_handle();
+        continue;
+      }
+    }
+
+    break;
+  }
+
+  if (res > 0) {
+    if (FD_ISSET(sockfd, &writefds)) {
+      pr_trace_msg(trace_channel, 3,
+        "sending %lu UDP message bytes to %s#%u",
+        (unsigned long) pkt->resp_datalen,
+        pr_netaddr_get_ipstr(pkt->remote_addr),
+        ntohs(pr_netaddr_get_port(pkt->remote_addr)));
+
+      res = sendto(sockfd, pkt->resp_data, pkt->resp_datalen, 0,
+        pr_netaddr_get_sockaddr(pkt->remote_addr),
+        pr_netaddr_get_sockaddr_len(pkt->remote_addr));
+      if (res < 0) {
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "error sending %u UDP message bytes to %s#%u: %s",
+          (unsigned int) pkt->resp_datalen,
+          pr_netaddr_get_ipstr(pkt->remote_addr),
+          ntohs(pr_netaddr_get_port(pkt->remote_addr)), strerror(errno));
+
+      } else {
+        pr_trace_msg(trace_channel, 3,
+          "sent %d UDP message bytes to %s#%u", res,
+          pr_netaddr_get_ipstr(pkt->remote_addr),
+          ntohs(pr_netaddr_get_port(pkt->remote_addr)));
+
+        res = snmp_db_incr_value(pkt->pool, SNMP_DB_SNMP_F_PKTS_SENT_TOTAL, 1);
+        if (res < 0) {
+          (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+            "error incrementing SNMP database for "
+            "snmp.packetsSentTotal: %s", strerror(errno));
+        }
+      }
+    }
+
+  } else {
+    if (res == 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "dropping response after waiting %u secs for available socket space",
+        (unsigned int) tv.tv_sec);
+
+    } else {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "dropping response due to select(2) failure: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(pkt->pool, SNMP_DB_SNMP_F_PKTS_DROPPED_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing snmp.packetsDroppedTotal: %s", strerror(errno));
+    }
+  }
 }
