@@ -77,14 +77,17 @@ static oid_t *get_notify_oid(unsigned int notify_id, unsigned int *oidlen) {
 }
 
 static struct snmp_packet *get_notify_pkt(pool *p, const char *community,
-    pr_netaddr_t *dst_addr,
+    pr_netaddr_t *dst_addr, unsigned int notify_id,
     struct snmp_var **head_var, struct snmp_var **tail_var) {
   struct snmp_packet *pkt = NULL;
+  struct snmp_mib *mib = NULL;
   struct snmp_var *resp_var = NULL;
   int32_t mib_int = -1;
   char *mib_str = NULL;
   size_t mib_strlen = 0;
   pr_netaddr_t *mib_addr = NULL;
+  oid_t *notify_oid = NULL;
+  unsigned int notify_oidlen = 0;
   int res;
 
   pkt = snmp_packet_create(p);
@@ -98,24 +101,34 @@ static struct snmp_packet *get_notify_pkt(pool *p, const char *community,
   pkt->resp_pdu->err_idx = 0;
   pkt->resp_pdu->request_id = snmp_notify_get_request_id();
 
-#if 0
-  /* XXX set first varbind to sysUptime.0 (1.3.6.1.2.1.1.3.0, TimeTicks)
-   *  (defined in RFC 3418).
-   *
+  /* Set first varbind to sysUptime.0 (1.3.6.1.2.1.1.3.0, TimeTicks),
+   * per RFC 1905, Section 4.2.6.
    */
-  res = snmp_db_get_value(pkt->pool, SNMP_DB_TRAP_F_SYS_UPTIME, &mib_int,
+  res = snmp_db_get_value(pkt->pool, SNMP_DB_NOTIFY_F_SYS_UPTIME, &mib_int,
     &mib_str, &mib_strlen, &mib_addr);
+  if (res < 0) {
+    int xerrno = errno;
 
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "unable to get system uptime for notification: %s", strerror(xerrno));
+
+    errno = xerrno;
+    return NULL;
+  }
+
+  mib = snmp_mib_get_by_idx(SNMP_MIB_SYS_UPTIME_IDX);
   resp_var = snmp_smi_create_var(pkt->pool, mib->mib_oid, mib->mib_oidlen,
     mib->smi_type, mib_int, mib_str, mib_strlen);
+  snmp_smi_util_add_list_var(head_var, tail_var, resp_var);
 
-  snmp_smi_util_list_add_var(head_var, tail_var, resp_var);
-
-  /* XXX set second varbind to snmpTrapOID.0 (1.3.6.1.6.3.1.1.4.1.0, OID)
-   *  (defined in RFC 3418) as the key; the value is the OID of the trap
-   *  being sent.
+  /* Set second varbind to snmpTrapOID.0 (1.3.6.1.6.3.1.1.4.1.0, OID)
+   * per RFC 1905, Section 4.2.6.
    */
-#endif
+  mib = snmp_mib_get_by_idx(SNMP_MIB_SNMP2_TRAP_OID_IDX);
+  notify_oid = get_notify_oid(notify_id, &notify_oidlen);
+  resp_var = snmp_smi_create_oid(pkt->pool, mib->mib_oid, mib->mib_oidlen,
+    mib->smi_type, notify_oid, notify_oidlen);
+  snmp_smi_util_add_list_var(head_var, tail_var, resp_var);
 
   return pkt;
 }
@@ -128,8 +141,19 @@ int snmp_notify_generate(pool *p, int sockfd, const char *community,
   int res;
   unsigned int var_count;
 
-  pkt = get_notify_pkt(p, community, dst_addr, &head_var, &tail_var);
   notify_name = get_notify_name(notify_id);
+
+  pkt = get_notify_pkt(p, community, dst_addr, notify_id, &head_var, &tail_var);
+  if (pkt == NULL) {
+    int xerrno = errno;
+
+    pr_trace_msg(trace_channel, 7,
+      "unable to create %s notification packet: %s", notify_name,
+      strerror(xerrno));
+
+    errno = xerrno;
+    return -1;
+  }
 
   /* All notifications start out with 2 vars in their list. */
   var_count = 2;
