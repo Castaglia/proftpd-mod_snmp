@@ -62,7 +62,7 @@ snmpModule MODULE-IDENTITY
 
         scp                      OBJECT IDENTIFIER ::= { snmpModule 7 }
         scpSessions              OBJECT IDENTIFIER ::= { scp 1 }
-        scpDataTransfers         OBJECT IDENTIFIER ::= { scp 3 }
+        scpDataTransfers         OBJECT IDENTIFIER ::= { scp 2 }
 
 --
 -- connection arc
