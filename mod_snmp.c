@@ -36,6 +36,7 @@
 #include "notify.h"
 
 /* Defaults */
+#define SNMP_DEFAULT_AGENT_PORT		161
 #define SNMP_DEFAULT_TRAP_PORT		162
 
 /* Agent type/role */
@@ -1650,14 +1651,15 @@ static void snmp_agent_stop(pid_t agent_pid) {
 /* Configuration handlers
  */
 
-/* usage: SNMPAgent "master"|"agentx" address port */
+/* usage: SNMPAgent "master"|"agentx" address[:port] */
 MODRET set_snmpagent(cmd_rec *cmd) {
   config_rec *c;
   int agent_type;
   pr_netaddr_t *agent_addr;
-  int agent_port;
+  int agent_port = SNMP_DEFAULT_AGENT_PORT;
+  char *ptr;
 
-  CHECK_ARGS(cmd, 3);
+  CHECK_ARGS(cmd, 2);
   CHECK_CONF(cmd, CONF_ROOT);
 
   if (strncasecmp(cmd->argv[1], "master", 7) == 0) {
@@ -1671,13 +1673,29 @@ MODRET set_snmpagent(cmd_rec *cmd) {
       cmd->argv[1], "'", NULL));
   }
 
+  /* Separate the port out from the address, if present.
+   *
+   * XXX Make sure we can handle an IPv6 address here, e.g.:
+   *
+   *   [::1]:162
+   */
+  ptr = strrchr(cmd->argv[2], ':');
+  if (ptr != NULL) {
+    *ptr = '\0';
+
+    agent_port = atoi(ptr + 1);
+    if (agent_port < 1 ||
+        agent_port > 65535) {
+      CONF_ERROR(cmd, "port must be between 1-65535");
+    }
+  }
+
   agent_addr = pr_netaddr_get_addr(snmp_pool, cmd->argv[2], NULL);
   if (agent_addr == NULL) {
     CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, "unable to resolve \"",
       cmd->argv[2], "\"", NULL));
   }
 
-  agent_port = atoi(cmd->argv[3]);
   pr_netaddr_set_port(agent_addr, htons(agent_port));
 
   c = add_config_param(cmd->argv[0], 2, NULL, NULL);
