@@ -91,6 +91,8 @@ static struct snmp_field_info snmp_fields[] = {
     0, "CONN_F_PID" },
   { SNMP_DB_CONN_F_USER_NAME, SNMP_DB_ID_CONN, 0,
     0, "CONN_F_USER_NAME" },
+  { SNMP_DB_CONN_F_PROTOCOL, SNMP_DB_ID_CONN, 0,
+    0, "CONN_F_PROTOCOL" },
 
   /* Daemon fields */
   { SNMP_DB_DAEMON_F_SOFTWARE, SNMP_DB_ID_DAEMON, 0,
@@ -863,6 +865,20 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
     
       *str_value = orig_user;
       *str_valuelen = strlen(*str_value);  
+
+      pr_trace_msg(trace_channel, 19,
+        "read value '%s' for field %s", *str_value,
+        snmp_db_get_fieldstr(p, field));
+      return 0;
+    }
+
+    case SNMP_DB_CONN_F_PROTOCOL: {
+      const char *proto;
+
+      proto = pr_session_get_protocol(0);
+   
+      *str_value = (char *) proto;
+      *str_valuelen = strlen(*str_value);
 
       pr_trace_msg(trace_channel, 19,
         "read value '%s' for field %s", *str_value,

@@ -99,6 +99,13 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "connection.userName.0",
     SNMP_SMI_STRING },
 
+  { { SNMP_MIB_CONN_OID_PROTOCOL, 0 },
+    SNMP_MIB_CONN_OIDLEN_PROTOCOL + 1,
+    SNMP_DB_CONN_F_PROTOCOL,
+    SNMP_MIB_NAME_PREFIX "connection.protocol",
+    SNMP_MIB_NAME_PREFIX "connection.protocol.0",
+    SNMP_SMI_STRING },
+
   /* Daemon MIBs */
   { { SNMP_MIB_DAEMON_OID_SOFTWARE, 0 },
     SNMP_MIB_DAEMON_OIDLEN_SOFTWARE + 1, 

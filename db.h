@@ -56,6 +56,7 @@ extern int snmp_table_ids[];
 #define SNMP_DB_CONN_F_CLIENT_PORT				15
 #define SNMP_DB_CONN_F_PID					16
 #define SNMP_DB_CONN_F_USER_NAME				17
+#define SNMP_DB_CONN_F_PROTOCOL					18
 
 /* daemon database fields */
 #define SNMP_DB_DAEMON_F_SOFTWARE				101

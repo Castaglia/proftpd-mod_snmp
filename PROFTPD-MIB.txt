@@ -100,6 +100,14 @@ snmpModule MODULE-IDENTITY
                 " User name for connecting client "
         ::= { connection 6 }
 
+        protocol OBJECT-TYPE
+            SYNTAX DisplayString
+            MAX-ACCESS accessible-for-notify
+            STATUS current
+            DESCRIPTION
+                " Protocol in use by the client to the server "
+        ::= { connection 7 }
+
 --
 -- daemon arc
 --
@@ -396,7 +404,8 @@ snmpModule MODULE-IDENTITY
                       serverPort,
                       clientAddress,
                       processId,
-                      userName }
+                      userName,
+                      protocol }
             STATUS  current
             DESCRIPTION
                 " Notification of a client using a bad password "

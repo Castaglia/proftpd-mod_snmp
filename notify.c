@@ -159,6 +159,7 @@ static int get_notify_varlist(pool *p, unsigned int notify_id,
        *  connection.clientAddress
        *  connection.processId
        *  connection.userName
+       *  connection.protocol
        */
 
       /* connection.serverName */
@@ -251,6 +252,22 @@ static int get_notify_varlist(pool *p, unsigned int notify_id,
       } else {
         oid_t oid[] = { SNMP_MIB_CONN_OID_USER_NAME, 0 };
         unsigned int oidlen = SNMP_MIB_CONN_OIDLEN_USER_NAME + 1;
+
+        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_STRING, int_value,
+          str_value, str_valuelen);
+        var_count = snmp_smi_util_add_list_var(head_var, &tail_var, var);
+      }
+
+      /* connection.protocol */
+      res = snmp_db_get_value(p, SNMP_DB_CONN_F_PROTOCOL, &int_value,
+        &str_value, &str_valuelen);
+      if (res < 0) {
+        pr_trace_msg(trace_channel, 5,
+          "unable to get connection.protocol value: %s", strerror(errno));
+
+      } else {
+        oid_t oid[] = { SNMP_MIB_CONN_OID_PROTOCOL, 0 };
+        unsigned int oidlen = SNMP_MIB_CONN_OIDLEN_PROTOCOL + 1;
 
         var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_STRING, int_value,
           str_value, str_valuelen);
