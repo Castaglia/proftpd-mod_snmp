@@ -2162,7 +2162,9 @@ MODRET snmp_err_stor(cmd_rec *cmd) {
  */
 
 static void snmp_auth_code_ev(const void *event_data, void *user_data) {
-  int auth_code, field, res;
+  int auth_code, db_field, res;
+  unsigned int notify_id = 0;
+  const char *notify_str = NULL;
 
   if (snmp_engine == FALSE) {
     return;
@@ -2179,40 +2181,45 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
 
   switch (auth_code) {
     case PR_AUTH_NOPWD:
-      field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_USER_TOTAL;
+      db_field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_USER_TOTAL;
+      notify_id = SNMP_NOTIFY_FTP_BAD_USER;
+      notify_str = "loginFailedBadUser";
       break;
 
     case PR_AUTH_BADPWD:
-      if (snmp_notifys != NULL) {
-        register unsigned int i;
-        pr_netaddr_t **dst_addrs;
-
-        dst_addrs = snmp_notifys->elts;
-        for (i = 0; i < snmp_notifys->nelts; i++) {
-          res = snmp_notify_generate(snmp_pool, -1, snmp_community,
-            session.c->local_addr, dst_addrs[i], SNMP_NOTIFY_FTP_BAD_PASSWD);
-          if (res < 0) {
-            (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-              "unable to send loginBadPassword notification to "
-              "SNMPNotify %s:%d: %s", pr_netaddr_get_ipstr(dst_addrs[i]),
-              ntohs(pr_netaddr_get_port(dst_addrs[i])), strerror(errno));
-          }
-        }
-      }
-
-      field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
+      db_field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
+      notify_id = SNMP_NOTIFY_FTP_BAD_PASSWD;
+      notify_str = "loginFailedBadPassword";
       break;
 
     default:
-      field = SNMP_DB_FTP_LOGINS_F_ERR_GENERAL_TOTAL;
+      db_field = SNMP_DB_FTP_LOGINS_F_ERR_GENERAL_TOTAL;
       break;
   }
   
-  res = snmp_db_incr_value(session.pool, field, 1);
+  res = snmp_db_incr_value(session.pool, db_field, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error decrementing SNMP database for login failure total: %s",
       strerror(errno));
+  }
+
+  if (notify_id > 0 &&
+      snmp_notifys != NULL) {
+    register unsigned int i;
+    pr_netaddr_t **dst_addrs;
+
+    dst_addrs = snmp_notifys->elts;
+    for (i = 0; i < snmp_notifys->nelts; i++) {
+      res = snmp_notify_generate(snmp_pool, -1, snmp_community,
+        session.c->local_addr, dst_addrs[i], notify_id);
+      if (res < 0) {
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "unable to send %s notification to SNMPNotify %s:%d: %s", notify_str,
+          pr_netaddr_get_ipstr(dst_addrs[i]),
+          ntohs(pr_netaddr_get_port(dst_addrs[i])), strerror(errno));
+      }
+    }
   }
 }
 

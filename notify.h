@@ -30,6 +30,7 @@
 
 /* ftp.notifications */
 #define SNMP_NOTIFY_FTP_BAD_PASSWD	1000
+#define SNMP_NOTIFY_FTP_BAD_USER	1001
 
 int snmp_notify_generate(pool *p, int sockfd, const char *community,
   pr_netaddr_t *src_addr, pr_netaddr_t *dst_addr, unsigned int notify_id);

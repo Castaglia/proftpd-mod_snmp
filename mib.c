@@ -350,6 +350,13 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ftp.notifications.loginBadPassword.0",
     SNMP_SMI_NULL },
 
+  { { SNMP_MIB_FTP_NOTIFICATIONS_OID_LOGIN_BAD_USER, 0 },
+    SNMP_MIB_FTP_NOTIFICATIONS_OIDLEN_LOGIN_BAD_USER + 1,
+    0,
+    SNMP_MIB_NAME_PREFIX "ftp.notifications.loginBadUser",
+    SNMP_MIB_NAME_PREFIX "ftp.notifications.loginBadUser.0",
+    SNMP_SMI_NULL },
+
   /* snmp MIBs */
   { { SNMP_MIB_SNMP_OID_PKTS_RECVD_TOTAL, 0 },
     SNMP_MIB_SNMP_OIDLEN_PKTS_RECVD_TOTAL + 1, 

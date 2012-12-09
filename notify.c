@@ -44,6 +44,10 @@ static struct snmp_notify_oid notify_oids[] = {
     { SNMP_MIB_FTP_NOTIFICATIONS_OID_LOGIN_BAD_PASSWORD, 0 },
     SNMP_MIB_FTP_NOTIFICATIONS_OIDLEN_LOGIN_BAD_PASSWORD + 1 },
 
+  { SNMP_NOTIFY_FTP_BAD_USER,
+    { SNMP_MIB_FTP_NOTIFICATIONS_OID_LOGIN_BAD_USER, 0 },
+    SNMP_MIB_FTP_NOTIFICATIONS_OIDLEN_LOGIN_BAD_USER + 1 },
+
   { 0, { }, 0 }
 };
 
@@ -52,7 +56,11 @@ static const char *get_notify_str(unsigned int notify_id) {
 
   switch (notify_id) {
     case SNMP_NOTIFY_FTP_BAD_PASSWD:
-      name = "loginBadPassword";
+      name = "loginFailedBadPassword";
+      break;
+
+    case SNMP_NOTIFY_FTP_BAD_USER:
+      name = "loginFailedBadUser";
       break;
 
     default:
@@ -68,13 +76,8 @@ static oid_t *get_notify_oid(pool *p, unsigned int notify_id,
 
   for (i = 0; notify_oids[i].notify_oidlen > 0; i++) {
     if (notify_oids[i].notify_id == notify_id) {
-      oid_t *oid;
-
       *oidlen = notify_oids[i].notify_oidlen;
-      oid = palloc(p, *oidlen * sizeof(oid_t));
-      memmove(oid, notify_oids[i].notify_oid, *oidlen * sizeof(oid_t));
-
-      return oid;
+      return notify_oids[i].notify_oid;
     }
   }
 
@@ -144,7 +147,8 @@ static int get_notify_varlist(pool *p, unsigned int notify_id,
   int var_count = 0;
 
   switch (notify_id) {
-    case SNMP_NOTIFY_FTP_BAD_PASSWD: {
+    case SNMP_NOTIFY_FTP_BAD_PASSWD:
+    case SNMP_NOTIFY_FTP_BAD_USER: {
       struct snmp_var *var;
       int32_t int_value = 0;
       char *str_value = NULL;
