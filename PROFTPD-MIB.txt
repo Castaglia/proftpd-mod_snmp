@@ -398,7 +398,7 @@ snmpModule MODULE-IDENTITY
 --
 -- ftp.notifications arc
 --
-        loginBadPassword NOTIFICATION-TYPE
+        loginFailedBadPassword NOTIFICATION-TYPE
             OBJECTS { serverName,
                       serverAddress,
                       serverPort,
@@ -411,11 +411,25 @@ snmpModule MODULE-IDENTITY
                 " Notification of a client using a bad password "
         ::= { notifications 1 }
 
---      MaxClients
---      MaxClientsPerClass
---      MaxClientsPerHost
---      MaxClientsPerUser
---      MaxHostsPerUser
+        loginFailedBadUser NOTIFICATION-TYPE
+            OBJECTS { serverName,
+                      serverAddress,
+                      serverPort,
+                      clientAddress,
+                      processId,
+                      userName,
+                      protocol }
+            STATUS  current
+            DESCRIPTION
+                " Notification of a client using a bad/unknown user name "
+        ::= { notifications 2 }
+
+--      maxLoginAttemptsExceeded
+--      loginFailedMaxClientsExceeded
+--      loginFailedMaxClientsPerClassExceeded
+--      loginFailedMaxClientsPerHostExceeded
+--      loginFailedMaxClientsPerUserExceeded
+--      loginFailedMaxHostsPerUserExceeded
 
 --
 -- snmp arc
