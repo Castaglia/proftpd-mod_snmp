@@ -2051,6 +2051,20 @@ MODRET snmp_log_pass(cmd_rec *cmd) {
 
   if (strncmp(proto, "ftp", 4) == 0 ||
       strncmp(proto, "ftps", 5) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_FTP_SESS_F_SESS_COUNT, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for ftp.sessions.sessionCount: %s",
+        strerror(errno));
+    }
+
+    res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_FTP_SESS_F_SESS_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for ftp.sessions.sessionTotal: %s",
+        strerror(errno));
+    }
+
     res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_FTP_LOGINS_F_TOTAL, 1);
     if (res < 0) {
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
@@ -2456,6 +2470,8 @@ static void snmp_exit_ev(const void *event_data, void *user_data) {
     }
 
   } else {
+    const char *proto;
+
     res = snmp_db_incr_value(snmp_pool, SNMP_DB_DAEMON_F_CONN_COUNT, -1);
     if (res < 0) {
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
@@ -2463,14 +2479,30 @@ static void snmp_exit_ev(const void *event_data, void *user_data) {
         strerror(errno));
     }
 
-    if (session.anon_config != NULL) {
-      res = snmp_db_incr_value(snmp_pool,
-        SNMP_DB_FTP_LOGINS_F_ANON_COUNT, -1);
+    proto = pr_session_get_protocol(0);
+
+    if (strncmp(proto, "ftp", 4) == 0 ||
+        strncmp(proto, "ftps", 5) == 0) {
+
+      res = snmp_db_incr_value(snmp_pool, SNMP_DB_FTP_SESS_F_SESS_COUNT, -1);
       if (res < 0) {
         (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-          "error decrementing SNMP database for "
-          "ftp.logins.anonLoginCount: %s", strerror(errno));
+          "error decrementing SNMP database for ftp.sessions.sessionCount: %s",
+          strerror(errno));
       }
+
+      if (session.anon_config != NULL) {
+        res = snmp_db_incr_value(snmp_pool,
+          SNMP_DB_FTP_LOGINS_F_ANON_COUNT, -1);
+        if (res < 0) {
+          (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+            "error decrementing SNMP database for "
+            "ftp.logins.anonLoginCount: %s", strerror(errno));
+        }
+      }
+
+    } else {
+      /* XXX ssh2/sftp/scp session end */
     }
   }
 
