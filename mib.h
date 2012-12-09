@@ -417,7 +417,7 @@
 /* XXX geoipStats MIBs */
 
 /* The longest MIB that we support/define. */
-#define SNMP_MIB_MAX_OIDLEN	14
+#define SNMP_MIB_MAX_OIDLEN		15
 
 /* The index at which the sysUpTime OID appears in our MIBs array. */
 #define SNMP_MIB_SYS_UPTIME_IDX		1
