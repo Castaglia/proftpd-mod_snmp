@@ -157,6 +157,15 @@ int snmp_msg_write(pool *p, unsigned char **buf, size_t *buflen,
   size_t msg_hdr_startlen, msg_len;
   int res;
 
+  if (p == NULL ||
+      buf == NULL ||
+      buflen == NULL ||
+      community == NULL ||
+      pdu == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
   msg_ptr = msg_hdr_start = *buf;
   msg_hdr_startlen = *buflen;
 
