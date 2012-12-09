@@ -53,7 +53,7 @@ snmpModule MODULE-IDENTITY
 
         ssh                      OBJECT IDENTIFIER ::= { snmpModule 5 }
         sshSessions              OBJECT IDENTIFIER ::= { ssh 1 }
-        sshAuths                 OBJECT IDENTIFIER ::= { sshSessions 1 }
+        sshAuth                  OBJECT IDENTIFIER ::= { sshSessions 1 }
         sshLogins                OBJECT IDENTIFIER ::= { ssh 2 }
 
         sftp                     OBJECT IDENTIFIER ::= { snmpModule 6 }
@@ -667,7 +667,7 @@ snmpModule MODULE-IDENTITY
 --
 
 --
--- ssh.sshSessions.sshAuths arc
+-- ssh.sshSessions.sshAuth arc
 --
         hostbasedAuthCount OBJECT-TYPE
             SYNTAX Gauge32
@@ -675,7 +675,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Count of SSH2 sessions authenticated using hostbased authentication "
-        ::= { sshAuths 1 }
+        ::= { sshAuth 1 }
 
         hostbasedAuthTotal OBJECT-TYPE
             SYNTAX Counter32
@@ -683,7 +683,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of SSH2 sessions authenticated using hostbased authentication "
-        ::= { sshAuths 2 }
+        ::= { sshAuth 2 }
 
         hostbasedAuthFailureTotal OBJECT-TYPE
             SYNTAX Counter32
@@ -691,7 +691,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of SSH2 hostbased authentication failures "
-        ::= { sshAuths 3 }
+        ::= { sshAuth 3 }
 
         keyboardInteractiveAuthCount OBJECT-TYPE
             SYNTAX Gauge32
@@ -699,7 +699,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Count of SSH2 sessions authenticated using keyboard-interactive authentication "
-        ::= { sshAuths 4 }
+        ::= { sshAuth 4 }
 
         keyboardInteractiveAuthTotal OBJECT-TYPE
             SYNTAX Counter32
@@ -707,7 +707,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of SSH2 sessions authenticated using keyboard-interactive authentication "
-        ::= { sshAuths 5 }
+        ::= { sshAuth 5 }
 
         keyboardInteractiveAuthFailureTotal OBJECT-TYPE
             SYNTAX Counter32
@@ -715,7 +715,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of SSH2 keyboard-interactive authentication failures "
-        ::= { sshAuths 6 }
+        ::= { sshAuth 6 }
 
         passwordAuthCount OBJECT-TYPE
             SYNTAX Gauge32
@@ -723,7 +723,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Count of SSH2 sessions authenticated using password authentication "
-        ::= { sshAuths 7 }
+        ::= { sshAuth 7 }
 
         passwordAuthTotal OBJECT-TYPE
             SYNTAX Counter32
@@ -731,7 +731,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of SSH2 sessions authenticated using password authentication "
-        ::= { sshAuths 8 }
+        ::= { sshAuth 8 }
 
         passwordAuthFailureTotal OBJECT-TYPE
             SYNTAX Counter32
@@ -739,7 +739,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of SSH2 password authentication failures "
-        ::= { sshAuths 9 }
+        ::= { sshAuth 9 }
 
         publickeyAuthCount OBJECT-TYPE
             SYNTAX Gauge32
@@ -747,7 +747,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Count of SSH2 sessions authenticated using publickey authentication "
-        ::= { sshAuths 10 }
+        ::= { sshAuth 10 }
 
         publickeyAuthTotal OBJECT-TYPE
             SYNTAX Counter32
@@ -755,7 +755,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of SSH2 sessions authenticated using publickey authentication "
-        ::= { sshAuths 11 }
+        ::= { sshAuth 11 }
 
         publickeyAuthFailureTotal OBJECT-TYPE
             SYNTAX Counter32
@@ -763,7 +763,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of SSH2 publickey authentication failures "
-        ::= { sshAuths 12 }
+        ::= { sshAuth 12 }
 
 --
 -- ssh.sshSessions arc
