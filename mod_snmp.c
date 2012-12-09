@@ -50,6 +50,7 @@ int snmp_logfd = -1;
 pool *snmp_pool = NULL;
 conn_t *snmp_conn = NULL;
 struct timeval snmp_start_tv;
+int snmp_proto_udp = IPPROTO_UDP;
 
 static pid_t snmp_agent_pid = 0;
 static int snmp_enabled = TRUE;
@@ -76,8 +77,6 @@ static unsigned int snmp_max_variables = SNMP_PDU_MAX_BINDINGS;
 static time_t snmp_agent_timeout = 1;
 
 static off_t snmp_retr_bytes = 0, snmp_stor_bytes = 0;
-
-static int udp_proto = IPPROTO_UDP;
 
 static const char *trace_channel = "snmp";
 
@@ -562,7 +561,6 @@ static int snmp_agent_handle_get(struct snmp_packet *pkt) {
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
-    pr_netaddr_t *mib_addr = NULL;
     int lacks_instance_id = FALSE;
 
     pr_signals_handle();
@@ -617,7 +615,7 @@ static int snmp_agent_handle_get(struct snmp_packet *pkt) {
      */
     if (resp_var == NULL) { 
       res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int, &mib_str,
-        &mib_strlen, &mib_addr);
+        &mib_strlen);
 
       /* XXX Response with genErr instead? */
       if (res < 0) {
@@ -680,7 +678,6 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
-    pr_netaddr_t *mib_addr = NULL;
 
     pr_signals_handle();
 
@@ -815,7 +812,7 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
         mib->mib_name);
  
       res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int, &mib_str,
-        &mib_strlen, &mib_addr);
+        &mib_strlen);
 
       /* XXX Response with genErr instead? */
       if (res < 0) {
@@ -901,7 +898,6 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
-    pr_netaddr_t *mib_addr = NULL;
 
     pr_signals_handle();
 
@@ -987,7 +983,7 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
         mib->mib_name);
  
       res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int, &mib_str,
-        &mib_strlen, &mib_addr);
+        &mib_strlen);
 
       /* XXX Response with genErr instead? */
       if (res < 0) {
@@ -1022,7 +1018,6 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
-    pr_netaddr_t *mib_addr = NULL;
 
     mib_idx = snmp_mib_get_idx(iter_var->name, iter_var->namelen,
       &lacks_instance_id);
@@ -1113,7 +1108,7 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
                 mib->mib_oidlen), mib->mib_name);
 
             res = snmp_db_get_value(pkt->pool, mib->db_field, &mib_int,
-              &mib_str, &mib_strlen, &mib_addr);
+              &mib_str, &mib_strlen);
 
             /* XXX Response with genErr instead? */
             if (res < 0) {
@@ -1380,7 +1375,7 @@ static int snmp_agent_listen(pr_netaddr_t *agent_addr) {
 
   /* XXX Support IPv6? */
 
-  sockfd = socket(AF_INET, SOCK_DGRAM, udp_proto);
+  sockfd = socket(AF_INET, SOCK_DGRAM, snmp_proto_udp);
   if (sockfd < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "unable to create UDP socket: %s", strerror(errno));
@@ -2176,8 +2171,14 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
 
         dst_addrs = snmp_notifys->elts;
         for (i = 0; i < snmp_notifys->nelts; i++) {
-          snmp_notify_generate(snmp_pool, -1, snmp_community,
+          res = snmp_notify_generate(snmp_pool, -1, snmp_community,
             session.c->local_addr, dst_addrs[i], SNMP_NOTIFY_FTP_BAD_PASSWD);
+          if (res < 0) {
+            (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+              "unable to send loginBadPassword notification to "
+              "SNMPNotify %s:%d: %s", pr_netaddr_get_ipstr(dst_addrs[i]),
+              ntohs(pr_netaddr_get_port(dst_addrs[i])), strerror(errno));
+          }
         }
       }
 
@@ -2605,7 +2606,7 @@ static int snmp_init(void) {
 
   pre = getprotobyname("udp");
   if (pre != NULL) {
-    udp_proto = pre->p_proto;
+    snmp_proto_udp = pre->p_proto;
   }
 
 #ifdef HAVE_ENDPROTOENT
