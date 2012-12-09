@@ -209,7 +209,7 @@ static int get_notify_varlist(pool *p, unsigned int notify_id,
         oid_t oid[] = { SNMP_MIB_CONN_OID_SERVER_PORT, 0 };
         unsigned int oidlen = SNMP_MIB_CONN_OIDLEN_SERVER_PORT + 1;
 
-        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_GAUGE32, int_value,
+        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_INTEGER, int_value,
           str_value, str_valuelen);
         var_count = snmp_smi_util_add_list_var(head_var, &tail_var, var);
       }
@@ -241,7 +241,7 @@ static int get_notify_varlist(pool *p, unsigned int notify_id,
         oid_t oid[] = { SNMP_MIB_CONN_OID_PID, 0 };
         unsigned int oidlen = SNMP_MIB_CONN_OIDLEN_PID + 1;
 
-        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_GAUGE32, int_value,
+        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_INTEGER, int_value,
           str_value, str_valuelen);
         var_count = snmp_smi_util_add_list_var(head_var, &tail_var, var);
       }

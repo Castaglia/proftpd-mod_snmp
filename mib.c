@@ -76,7 +76,7 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_DB_CONN_F_SERVER_PORT,
     SNMP_MIB_NAME_PREFIX "connection.serverPort",
     SNMP_MIB_NAME_PREFIX "connection.serverPort.0",
-    SNMP_SMI_GAUGE32 },
+    SNMP_SMI_INTEGER },
 
   { { SNMP_MIB_CONN_OID_CLIENT_ADDR, 0 },
     SNMP_MIB_CONN_OIDLEN_CLIENT_ADDR + 1,
@@ -90,7 +90,7 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_DB_CONN_F_PID,
     SNMP_MIB_NAME_PREFIX "connection.processId",
     SNMP_MIB_NAME_PREFIX "connection.processId.0",
-    SNMP_SMI_GAUGE32 },
+    SNMP_SMI_INTEGER },
 
   { { SNMP_MIB_CONN_OID_USER_NAME, 0 },
     SNMP_MIB_CONN_OIDLEN_USER_NAME + 1,
