@@ -55,7 +55,7 @@
 # include <sys/uio.h>
 #endif
 
-#define MOD_SNMP_VERSION	"mod_snmp/0.1"
+#define MOD_SNMP_VERSION	"mod_snmp/0.2"
 
 /* Make sure the version of proftpd is as necessary. */
 #if PROFTPD_VERSION_NUMBER < 0x0001030403
@@ -74,5 +74,6 @@
 extern int snmp_logfd;
 extern pool *snmp_pool;
 extern struct timeval snmp_start_tv;
+extern int snmp_proto_udp;
 
 #endif
