@@ -128,7 +128,7 @@ int snmp_db_unlock(unsigned int field);
 int snmp_db_close(pool *p, int db_id);
 int snmp_db_open(pool *p, int db_id);
 int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
-  char **str_value, size_t *str_valuelen, pr_netaddr_t **);
+  char **str_value, size_t *str_valuelen);
 int snmp_db_incr_value(pool *p, unsigned int field, int32_t incr);
 
 /* Used to reset/clear counters. */

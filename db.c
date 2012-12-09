@@ -765,7 +765,7 @@ int snmp_db_close(pool *p, int db_id) {
 }
 
 int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
-    char **str_value, size_t *str_valuelen, pr_netaddr_t **addr_value) {
+    char **str_value, size_t *str_valuelen) {
   void *db_data, *field_data;
   int db_id, res;
   off_t field_start;
@@ -774,7 +774,6 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
   switch (field) {
     case SNMP_DB_NOTIFY_F_SYS_UPTIME: {
       struct timeval start_tv, now_tv;
-      int res;
 
       /* TimeTicks are in hundredths of seconds since start time. */
       res = snmp_uptime_get(p, &start_tv);
@@ -793,28 +792,83 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
     }
 
     case SNMP_DB_CONN_F_SERVER_NAME:
-      errno = ENOSYS;
-      return -1;
+      if (main_server->ServerName == NULL) {
+        errno = ENOENT;
+        return -1;
+      }
+
+      *str_value = (char *) main_server->ServerName;
+      *str_valuelen = strlen(*str_value);
+
+      pr_trace_msg(trace_channel, 19,
+        "read value '%s' for field %s", *str_value,
+        snmp_db_get_fieldstr(p, field));
+      return 0;
 
     case SNMP_DB_CONN_F_SERVER_ADDR:
-      errno = ENOSYS;
-      return -1;
+      if (session.c == NULL) {
+        errno = ENOENT;
+        return -1;
+      }
+
+      *str_value = (char *) pr_netaddr_get_ipstr(session.c->local_addr);
+      *str_valuelen = strlen(*str_value);
+
+      pr_trace_msg(trace_channel, 19,
+        "read value '%s' for field %s", *str_value,
+        snmp_db_get_fieldstr(p, field));
+      return 0;
 
     case SNMP_DB_CONN_F_SERVER_PORT:
-      errno = ENOSYS;
-      return -1;
+      if (session.c == NULL) {
+        errno = ENOENT;
+        return -1;
+      }
+
+      *int_value = ntohs(pr_netaddr_get_port(session.c->remote_addr));
+      pr_trace_msg(trace_channel, 19,
+        "read value %lu for field %s", (unsigned long) *int_value,
+        snmp_db_get_fieldstr(p, field));
+      return 0;
 
     case SNMP_DB_CONN_F_CLIENT_ADDR:
-      errno = ENOSYS;
-      return -1;
+      if (session.c == NULL) {
+        errno = ENOENT;
+        return -1;
+      }
+
+      *str_value = (char *) pr_netaddr_get_ipstr(session.c->remote_addr);
+      *str_valuelen = strlen(*str_value);
+
+      pr_trace_msg(trace_channel, 19,
+        "read value '%s' for field %s", *str_value,
+        snmp_db_get_fieldstr(p, field));
+      return 0;
 
     case SNMP_DB_CONN_F_PID:
-      errno = ENOSYS;
-      return -1;
+      *int_value = session.pid;
+      pr_trace_msg(trace_channel, 19,
+        "read value %lu for field %s", (unsigned long) *int_value,
+        snmp_db_get_fieldstr(p, field));
+      return 0;
 
-    case SNMP_DB_CONN_F_USER_NAME:
-      errno = ENOSYS;
-      return -1;
+    case SNMP_DB_CONN_F_USER_NAME: {
+      char *orig_user;
+
+      orig_user = pr_table_get(session.notes, "mod_auth.orig-user", NULL);
+      if (orig_user == NULL) {
+        errno = ENOENT;
+        return -1;
+      }
+    
+      *str_value = orig_user;
+      *str_valuelen = strlen(*str_value);  
+
+      pr_trace_msg(trace_channel, 19,
+        "read value '%s' for field %s", *str_value,
+        snmp_db_get_fieldstr(p, field));
+      return 0;
+    }
 
     case SNMP_DB_DAEMON_F_SOFTWARE:
       *str_value = "proftpd";
