@@ -57,7 +57,7 @@ questions, concerns, or suggestions regarding this module.
 <p>
 <hr>
 <h2><a name="SNMPAgent">SNMPAgent</a></h2>
-<strong>Syntax:</strong> SNMPAgent master|agentx <em>ip-address</em> <em>port</em><br>
+<strong>Syntax:</strong> SNMPAgent master|agentx <em>address[:port]</em><br>
 <strong>Default:</strong> <em>None</em><br>
 <strong>Context:</strong> &quot;server config&quot;<br>
 <strong>Module:</strong> mod_snmp<br>
@@ -69,11 +69,16 @@ module to act as a "master" SNMP agent/entity, or as an AgentX sub-agent.
 (<b>Note</b> that the AgentX capability is not currently implemented.)
 
 <p>
-The <em>ip-address</em> and <em>port</em> parameters configure the address/port
-on which <code>mod_snmp</code> will listen for UDP SNMP packets.
+The <em>address</em> parameter can be an IP address or a DNS name; this
+parameter configures the address/port on which <code>mod_snmp</code> will listen
+for UDP SNMP packets.  By default, a port of 161 is assumed, use
+<em>address:port</em> to specify an alternate port, <i>e.g.</i>:
+<pre>
+  SNMPAgent master localhost:1161
+</pre>
 
 <p>
-Note that the <code>SNMPAgent</code> diretive is <b>required</b>.
+Note that the <code>SNMPAgent</code> directive is <b>required</b>.
 
 <p>
 <hr>
@@ -90,7 +95,7 @@ string (effectively a passphrase) used for authenticating SNMPv1 and SNMPv2
 messages.
 
 <p>
-Note that the <code>SNMPCommunity</code> diretive is <b>required</b>.
+Note that the <code>SNMPCommunity</code> directive is <b>required</b>.
 
 <p>
 <hr>
