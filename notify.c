@@ -47,7 +47,7 @@ static struct snmp_notify_oid notify_oids[] = {
   { 0, { }, 0 }
 };
 
-static const char *get_notify_name(unsigned int notify_id) {
+static const char *get_notify_str(unsigned int notify_id) {
   const char *name = NULL;
 
   switch (notify_id) {
@@ -62,13 +62,19 @@ static const char *get_notify_name(unsigned int notify_id) {
   return name;
 }
 
-static oid_t *get_notify_oid(unsigned int notify_id, unsigned int *oidlen) {
+static oid_t *get_notify_oid(pool *p, unsigned int notify_id,
+    unsigned int *oidlen) {
   register unsigned int i;
 
   for (i = 0; notify_oids[i].notify_oidlen > 0; i++) {
     if (notify_oids[i].notify_id == notify_id) {
+      oid_t *oid;
+
       *oidlen = notify_oids[i].notify_oidlen;
-      return notify_oids[i].notify_oid;
+      oid = palloc(p, *oidlen * sizeof(oid_t));
+      memmove(oid, notify_oids[i].notify_oid, *oidlen * sizeof(oid_t));
+
+      return oid;
     }
   }
 
@@ -85,7 +91,6 @@ static struct snmp_packet *get_notify_pkt(pool *p, const char *community,
   int32_t mib_int = -1;
   char *mib_str = NULL;
   size_t mib_strlen = 0;
-  pr_netaddr_t *mib_addr = NULL;
   oid_t *notify_oid = NULL;
   unsigned int notify_oidlen = 0;
   int res;
@@ -105,7 +110,7 @@ static struct snmp_packet *get_notify_pkt(pool *p, const char *community,
    * per RFC 1905, Section 4.2.6.
    */
   res = snmp_db_get_value(pkt->pool, SNMP_DB_NOTIFY_F_SYS_UPTIME, &mib_int,
-    &mib_str, &mib_strlen, &mib_addr);
+    &mib_str, &mib_strlen);
   if (res < 0) {
     int xerrno = errno;
 
@@ -125,7 +130,7 @@ static struct snmp_packet *get_notify_pkt(pool *p, const char *community,
    * per RFC 1905, Section 4.2.6.
    */
   mib = snmp_mib_get_by_idx(SNMP_MIB_SNMP2_TRAP_OID_IDX);
-  notify_oid = get_notify_oid(notify_id, &notify_oidlen);
+  notify_oid = get_notify_oid(pkt->pool, notify_id, &notify_oidlen);
   resp_var = snmp_smi_create_oid(pkt->pool, mib->mib_oid, mib->mib_oidlen,
     mib->smi_type, notify_oid, notify_oidlen);
   snmp_smi_util_add_list_var(head_var, tail_var, resp_var);
@@ -133,40 +138,185 @@ static struct snmp_packet *get_notify_pkt(pool *p, const char *community,
   return pkt;
 }
 
+static int get_notify_varlist(pool *p, unsigned int notify_id,
+    struct snmp_var **head_var) {
+  struct snmp_var *tail_var = NULL;
+  int var_count = 0;
+
+  switch (notify_id) {
+    case SNMP_NOTIFY_FTP_BAD_PASSWD: {
+      struct snmp_var *var;
+      int32_t int_value = 0;
+      char *str_value = NULL;
+      size_t str_valuelen = 0;
+      int res;
+
+      /* Per PROFTPD-MIB, we need to include:
+       *
+       *  connection.serverName
+       *  connection.serverAddress
+       *  connection.serverPort
+       *  connection.clientAddress
+       *  connection.processId
+       *  connection.userName
+       */
+
+      /* connection.serverName */
+      res = snmp_db_get_value(p, SNMP_DB_CONN_F_SERVER_NAME, &int_value,
+        &str_value, &str_valuelen);
+      if (res < 0) {
+        pr_trace_msg(trace_channel, 5,
+          "unable to get connection.serverName value: %s", strerror(errno));
+
+      } else {
+        oid_t oid[] = { SNMP_MIB_CONN_OID_SERVER_NAME, 0 };
+        unsigned int oidlen = SNMP_MIB_CONN_OIDLEN_SERVER_NAME + 1;
+
+        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_STRING, int_value,
+          str_value, str_valuelen);
+        var_count = snmp_smi_util_add_list_var(head_var, &tail_var, var);
+      }
+
+      /* connection.serverAddress */
+      res = snmp_db_get_value(p, SNMP_DB_CONN_F_SERVER_ADDR, &int_value,
+        &str_value, &str_valuelen);
+      if (res < 0) {
+        pr_trace_msg(trace_channel, 5,
+          "unable to get connection.serverAddress value: %s", strerror(errno));
+
+      } else {
+        oid_t oid[] = { SNMP_MIB_CONN_OID_SERVER_ADDR, 0 };
+        unsigned int oidlen = SNMP_MIB_CONN_OIDLEN_SERVER_ADDR + 1;
+
+        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_STRING, int_value,
+          str_value, str_valuelen);
+        var_count = snmp_smi_util_add_list_var(head_var, &tail_var, var);
+      }
+
+      /* connection.serverPort */
+      res = snmp_db_get_value(p, SNMP_DB_CONN_F_SERVER_PORT, &int_value,
+        &str_value, &str_valuelen);
+      if (res < 0) {
+        pr_trace_msg(trace_channel, 5,
+          "unable to get connection.serverPort value: %s", strerror(errno));
+
+      } else {
+        oid_t oid[] = { SNMP_MIB_CONN_OID_SERVER_PORT, 0 };
+        unsigned int oidlen = SNMP_MIB_CONN_OIDLEN_SERVER_PORT + 1;
+
+        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_GAUGE32, int_value,
+          str_value, str_valuelen);
+        var_count = snmp_smi_util_add_list_var(head_var, &tail_var, var);
+      }
+
+      /* connection.clientAddress */
+      res = snmp_db_get_value(p, SNMP_DB_CONN_F_CLIENT_ADDR, &int_value,
+        &str_value, &str_valuelen);
+      if (res < 0) {
+        pr_trace_msg(trace_channel, 5,
+          "unable to get connection.clientAddress value: %s", strerror(errno));
+
+      } else {
+        oid_t oid[] = { SNMP_MIB_CONN_OID_CLIENT_ADDR, 0 };
+        unsigned int oidlen = SNMP_MIB_CONN_OIDLEN_CLIENT_ADDR + 1;
+
+        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_STRING, int_value,
+          str_value, str_valuelen);
+        var_count = snmp_smi_util_add_list_var(head_var, &tail_var, var);
+      }
+
+      /* connection.processId */
+      res = snmp_db_get_value(p, SNMP_DB_CONN_F_PID, &int_value, &str_value,
+        &str_valuelen);
+      if (res < 0) {
+        pr_trace_msg(trace_channel, 5,
+          "unable to get connection.processId value: %s", strerror(errno));
+
+      } else {
+        oid_t oid[] = { SNMP_MIB_CONN_OID_PID, 0 };
+        unsigned int oidlen = SNMP_MIB_CONN_OIDLEN_PID + 1;
+
+        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_GAUGE32, int_value,
+          str_value, str_valuelen);
+        var_count = snmp_smi_util_add_list_var(head_var, &tail_var, var);
+      }
+
+      /* connection.userName */
+      res = snmp_db_get_value(p, SNMP_DB_CONN_F_USER_NAME, &int_value,
+        &str_value, &str_valuelen);
+      if (res < 0) {
+        pr_trace_msg(trace_channel, 5,
+          "unable to get connection.userName value: %s", strerror(errno));
+
+      } else {
+        oid_t oid[] = { SNMP_MIB_CONN_OID_USER_NAME, 0 };
+        unsigned int oidlen = SNMP_MIB_CONN_OIDLEN_USER_NAME + 1;
+
+        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_STRING, int_value,
+          str_value, str_valuelen);
+        var_count = snmp_smi_util_add_list_var(head_var, &tail_var, var);
+      }
+
+      return var_count;
+    }
+
+    default:
+      break;
+  }
+
+  errno = ENOENT;
+  return -1;
+}
+
 int snmp_notify_generate(pool *p, int sockfd, const char *community,
     pr_netaddr_t *src_addr, pr_netaddr_t *dst_addr, unsigned int notify_id) {
-  const char *notify_name;
+  const char *notify_str;
   struct snmp_packet *pkt;
-  struct snmp_var *head_var = NULL, *tail_var = NULL, *resp_var;
-  int res;
+  struct snmp_var *notify_varlist = NULL, *head_var = NULL, *tail_var = NULL,
+    *iter_var;
+  int fd = -1, res;
   unsigned int var_count;
 
-  notify_name = get_notify_name(notify_id);
+  notify_str = get_notify_str(notify_id);
 
   pkt = get_notify_pkt(p, community, dst_addr, notify_id, &head_var, &tail_var);
   if (pkt == NULL) {
     int xerrno = errno;
 
     pr_trace_msg(trace_channel, 7,
-      "unable to create %s notification packet: %s", notify_name,
+      "unable to create %s notification packet: %s", notify_str,
       strerror(xerrno));
 
     errno = xerrno;
     return -1;
   }
 
-  /* All notifications start out with 2 vars in their list. */
-  var_count = 2;
+  /* Add trap-specific varbinds */
+  res = get_notify_varlist(p, notify_id, &notify_varlist);
+  if (res < 0) {
+    int xerrno = errno;
 
-  /* XXX Add trap-specific varbinds */
-  var_count = snmp_smi_util_add_list_var(&head_var, &tail_var, resp_var);
+    pr_trace_msg(trace_channel, 7,
+      "unable to create %s notification varbind list: %s", notify_str,
+      strerror(xerrno));
+
+    destroy_pool(pkt->pool);
+    errno = xerrno;
+    return -1;
+  }
+
+  for (iter_var = notify_varlist; iter_var; iter_var = iter_var->next) {
+    pr_signals_handle();
+
+    var_count = snmp_smi_util_add_list_var(&head_var, &tail_var, iter_var);
+  }
 
   pkt->resp_pdu->varlist = head_var;
   pkt->resp_pdu->varlistlen = var_count;
 
   (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
     "writing %s SNMP notification for %s, community = '%s', request ID %ld, "
-    "request type '%s'", notify_name,
+    "request type '%s'", notify_str,
     snmp_msg_get_versionstr(pkt->snmp_version), pkt->community,
     pkt->resp_pdu->request_id,
     snmp_pdu_get_request_type_desc(pkt->resp_pdu->request_type));
@@ -177,7 +327,7 @@ int snmp_notify_generate(pool *p, int sockfd, const char *community,
     int xerrno = errno;
 
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error writing %s SNMP notification to UDP packet: %s", notify_name,
+      "error writing %s SNMP notification to UDP packet: %s", notify_str,
       strerror(xerrno));
 
     destroy_pool(pkt->pool);
@@ -186,14 +336,35 @@ int snmp_notify_generate(pool *p, int sockfd, const char *community,
   }
 
   if (sockfd < 0) {
-    /* XXX Need to open our own socket to the receiver. */
+    /* If the given fd isn't open, then we need to open our own. */
+
+    /* XXX Support IPv6? */
+
+    fd = socket(AF_INET, SOCK_DGRAM, snmp_proto_udp);
+    if (fd < 0) {
+      int xerrno = errno;
+
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "unable to create UDP socket: %s", strerror(xerrno));
+
+      destroy_pool(pkt->pool);
+      errno = xerrno;
+      return -1;
+    }
+
+  } else {
+    fd = sockfd;
   }
 
-  snmp_packet_write(p, sockfd, pkt);
+  snmp_packet_write(p, fd, pkt);
   destroy_pool(pkt->pool);
 
-  errno = ENOSYS;
-  return -1;
+  /* If we opened our own socket here, then close it. */
+  if (sockfd < 0) {
+    (void) close(fd);
+  }
+
+  return 0;
 }
 
 long snmp_notify_get_request_id(void) {
