@@ -624,6 +624,143 @@ contains the ProFTPD versions where the OID is present.
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
     <td>&nbsp;Total number of SNMP packets dropped&nbsp;</td>
   </tr>
+
+  <tr>
+    <td>&nbsp;*.4.1.1.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsSessions.sessionCount&nbsp;</td>
+    <td>&nbsp;Gauge32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Number of current FTPS sessions&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.1.2.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsSessions.sessionTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of FTPS sessions handled&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.1.3.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsSessions.ctrlHandshakeFailureTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.5rc1+&nbsp;</td>
+    <td>&nbsp;Total number of failed control connection SSL/TLS handshakes&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.1.4.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsSessions.dataHandshakeFailureTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.5rc1+&nbsp;</td>
+    <td>&nbsp;Total number of failed data connection SSL/TLS handshakes&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.2.1.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsLogins.loginTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of successful FTPS logins&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.2.2.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsLogins.loginFailedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of <b>failed</b> FTPS logins&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.3.1.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsDataTransfers.dirListCount&nbsp;</td>
+    <td>&nbsp;Gauge32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Number of directories currently being listed via FTPS&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.3.2.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsDataTransfers.dirListTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of directories listed via FTPS&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.3.3.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsDataTransfers.dirListFailedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of directory list failures via FTPS&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.3.4.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsDataTransfers.fileUploadCount&nbsp;</td>
+    <td>&nbsp;Gauge32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Number of files currently being uploaded via FTPS&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.3.5.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsDataTransfers.fileUploadTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of files uploaded via FTPS&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.3.6.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsDataTransfers.fileUploadFailedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of file upload failures via FTPS&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.3.7.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsDataTransfers.fileDownloadCount&nbsp;</td>
+    <td>&nbsp;Gauge32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Number of files currently being downloaded via FTPS&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.3.8.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsDataTransfers.fileDownloadTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of files downloaded via FTPS&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.3.9.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsDataTransfers.fileDownloadFailedTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of file download failures via FTPS&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.3.10.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsDataTransfers.kbUploadTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of KB uploaded via FTPS&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.4.3.11.0&nbsp;</td>
+    <td>&nbsp;ftps.tlsDataTransfers.kbDownloadTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of KB downloaded via FTPS&nbsp;</td>
+  </tr>
+
 </table>
 
 <p>
