@@ -20,8 +20,6 @@
  * give permission to link this program with OpenSSL, and distribute the
  * resulting executable, without including the source code for OpenSSL in the
  * source distribution.
- *
- * $Id$
  */
 
 #include "mod_snmp.h"
@@ -36,7 +34,7 @@
 #define SNMP_DB_ID_DAEMON		3
 #define SNMP_DB_ID_FTP			4
 #define SNMP_DB_ID_SNMP			5
-#define SNMP_DB_ID_SSL			6
+#define SNMP_DB_ID_TLS			6
 #define SNMP_DB_ID_SSH			7
 #define SNMP_DB_ID_SQL			8
 #define SNMP_DB_ID_QUOTA		9
@@ -71,7 +69,7 @@ extern int snmp_table_ids[];
 #define SNMP_DB_DAEMON_F_SEGFAULT_COUNT				110
 #define SNMP_DB_DAEMON_F_MAXINST_COUNT				111
 
-/* ftp.sesssions database fields */
+/* ftp.sessions database fields */
 #define SNMP_DB_FTP_SESS_F_SESS_COUNT				120
 #define SNMP_DB_FTP_SESS_F_SESS_TOTAL				121
 #define SNMP_DB_FTP_SESS_F_CMD_INVALID_TOTAL			122
@@ -111,7 +109,28 @@ extern int snmp_table_ids[];
 #define SNMP_DB_SNMP_F_PKTS_AUTH_ERR_TOTAL			203
 #define SNMP_DB_SNMP_F_PKTS_DROPPED_TOTAL			204
 
-/* XXX ssl database fields */
+/* ftps.tlsSessions database fields */
+#define SNMP_DB_FTPS_SESS_F_SESS_COUNT				310
+#define SNMP_DB_FTPS_SESS_F_SESS_TOTAL				311
+#define SNMP_DB_FTPS_SESS_F_CTRL_HANDSHAKE_ERR_TOTAL		312
+#define SNMP_DB_FTPS_SESS_F_DATA_HANDSHAKE_ERR_TOTAL		313
+
+/* ftps.tlsLogins database fields */
+#define SNMP_DB_FTPS_LOGINS_F_TOTAL				320
+#define SNMP_DB_FTPS_LOGINS_F_ERR_TOTAL				321
+
+/* ftps.tlsDataTransfers database fields */
+#define SNMP_DB_FTPS_XFERS_F_DIR_LIST_COUNT			330
+#define SNMP_DB_FTPS_XFERS_F_DIR_LIST_TOTAL			331
+#define SNMP_DB_FTPS_XFERS_F_DIR_LIST_ERR_TOTAL			332
+#define SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_COUNT			333
+#define SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_TOTAL			334
+#define SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_ERR_TOTAL		335
+#define SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_COUNT		336
+#define SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_TOTAL		337
+#define SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL		338
+#define SNMP_DB_FTPS_XFERS_F_KB_UPLOAD_TOTAL			339
+#define SNMP_DB_FTPS_XFERS_F_KB_DOWNLOAD_TOTAL			340
 
 /* XXX ssh database fields */
 

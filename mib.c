@@ -414,6 +414,128 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "snmp.packetsDroppedTotal.0",
     SNMP_SMI_COUNTER32 },
 
+  /* ftps.tlsSessions MIBs */
+  { { SNMP_MIB_FTPS_SESS_OID_SESS_COUNT, 0 },
+    SNMP_MIB_FTPS_SESS_OIDLEN_SESS_COUNT + 1,
+    SNMP_DB_FTPS_SESS_F_SESS_COUNT,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.sessionCount",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.sessionCount.0",
+    SNMP_SMI_GAUGE32 },
+
+  { { SNMP_MIB_FTPS_SESS_OID_SESS_TOTAL, 0 },
+    SNMP_MIB_FTPS_SESS_OIDLEN_SESS_TOTAL + 1,
+    SNMP_DB_FTPS_SESS_F_SESS_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.sessionTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.sessionTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_SESS_OID_CTRL_HANDSHAKE_ERR_TOTAL, 0 },
+    SNMP_MIB_FTPS_SESS_OIDLEN_CTRL_HANDSHAKE_ERR_TOTAL + 1,
+    SNMP_DB_FTPS_SESS_F_CTRL_HANDSHAKE_ERR_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.ctrlHandshakeFailureTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.ctrlHandshakeFailureTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_SESS_OID_DATA_HANDSHAKE_ERR_TOTAL, 0 },
+    SNMP_MIB_FTPS_SESS_OIDLEN_DATA_HANDSHAKE_ERR_TOTAL + 1,
+    SNMP_DB_FTPS_SESS_F_DATA_HANDSHAKE_ERR_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.dataHandshakeFailureTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.dataHandshakeFailureTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  /* ftps.tlsLogins MIBs */
+  { { SNMP_MIB_FTPS_LOGINS_OID_TOTAL, 0 },
+    SNMP_MIB_FTPS_LOGINS_OIDLEN_TOTAL + 1,
+    SNMP_DB_FTPS_LOGINS_F_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsLogins.loginTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsLogins.loginTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_LOGINS_OID_ERR_TOTAL, 0 },
+    SNMP_MIB_FTPS_LOGINS_OIDLEN_ERR_TOTAL + 1,
+    SNMP_DB_FTPS_LOGINS_F_ERR_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsLogins.loginFailedTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsLogins.loginFailedTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  /* ftps.tlsDataTransfers MIBs */
+  { { SNMP_MIB_FTPS_XFERS_OID_DIR_LIST_COUNT, 0 },
+    SNMP_MIB_FTPS_XFERS_OIDLEN_DIR_LIST_COUNT + 1,
+    SNMP_DB_FTPS_XFERS_F_DIR_LIST_COUNT,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.dirListCount",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.dirListCount.0",
+    SNMP_SMI_GAUGE32 },
+
+  { { SNMP_MIB_FTPS_XFERS_OID_DIR_LIST_TOTAL, 0 },
+    SNMP_MIB_FTPS_XFERS_OIDLEN_DIR_LIST_TOTAL + 1,
+    SNMP_DB_FTPS_XFERS_F_DIR_LIST_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.dirListTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.dirListTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_XFERS_OID_DIR_LIST_ERR_TOTAL, 0 },
+    SNMP_MIB_FTPS_XFERS_OIDLEN_DIR_LIST_ERR_TOTAL + 1,
+    SNMP_DB_FTPS_XFERS_F_DIR_LIST_ERR_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.dirListFailedTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.dirListFailedTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_XFERS_OID_FILE_UPLOAD_COUNT, 0 },
+    SNMP_MIB_FTPS_XFERS_OIDLEN_FILE_UPLOAD_COUNT + 1,
+    SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_COUNT,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileUploadCount",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileUploadCount.0",
+    SNMP_SMI_GAUGE32 },
+
+  { { SNMP_MIB_FTPS_XFERS_OID_FILE_UPLOAD_TOTAL, 0 },
+    SNMP_MIB_FTPS_XFERS_OIDLEN_FILE_UPLOAD_TOTAL + 1,
+    SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileUploadTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileUploadTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_XFERS_OID_FILE_UPLOAD_ERR_TOTAL, 0 },
+    SNMP_MIB_FTPS_XFERS_OIDLEN_FILE_UPLOAD_ERR_TOTAL + 1,
+    SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_ERR_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileUploadFailedTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileUploadFailedTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_XFERS_OID_FILE_DOWNLOAD_COUNT, 0 },
+    SNMP_MIB_FTPS_XFERS_OIDLEN_FILE_DOWNLOAD_COUNT + 1,
+    SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_COUNT,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileDownloadCount",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileDownloadCount.0",
+    SNMP_SMI_GAUGE32 },
+
+  { { SNMP_MIB_FTPS_XFERS_OID_FILE_DOWNLOAD_TOTAL, 0 },
+    SNMP_MIB_FTPS_XFERS_OIDLEN_FILE_DOWNLOAD_TOTAL + 1,
+    SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileDownloadTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileDownloadTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_XFERS_OID_FILE_DOWNLOAD_ERR_TOTAL, 0 },
+    SNMP_MIB_FTPS_XFERS_OIDLEN_FILE_DOWNLOAD_ERR_TOTAL + 1,
+    SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileDownloadFailedTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.fileDownloadFailedTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_XFERS_OID_KB_UPLOAD_TOTAL, 0 },
+    SNMP_MIB_FTPS_XFERS_OIDLEN_KB_UPLOAD_TOTAL + 1,
+    SNMP_DB_FTPS_XFERS_F_KB_UPLOAD_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.kbUploadTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.kbUploadTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_XFERS_OID_KB_DOWNLOAD_TOTAL, 0 },
+    SNMP_MIB_FTPS_XFERS_OIDLEN_KB_DOWNLOAD_TOTAL + 1,
+    SNMP_DB_FTPS_XFERS_F_KB_DOWNLOAD_TOTAL,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.kbDownloadTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.kbDownloadTotal.0",
+    SNMP_SMI_COUNTER32 },
+
   { { }, 0, 0, NULL, NULL, 0 }
 };
 

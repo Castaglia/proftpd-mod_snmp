@@ -20,8 +20,6 @@
  * give permission to link this program with OpenSSL, and distribute the
  * resulting executable, without including the source code for OpenSSL in the
  * source distribution.
- *
- * $Id$
  */
 
 #include "mod_snmp.h"
@@ -46,11 +44,12 @@ int snmp_table_ids[] = {
   SNMP_DB_ID_DAEMON,
   SNMP_DB_ID_FTP,
   SNMP_DB_ID_SNMP,
+  SNMP_DB_ID_TLS,
 
   /* XXX Not supported just yet */
 #if 0
-  SNMP_DB_ID_SSL,
-  SNMP_DB_ID_SSH,
+  SNMP_DB_ID_SFTP,
+  SNMP_DB_ID_SCP,
   SNMP_DB_ID_SQL,
   SNMP_DB_ID_QUOTA,
   SNMP_DB_ID_BAN,
@@ -188,6 +187,46 @@ static struct snmp_field_info snmp_fields[] = {
   { SNMP_DB_SNMP_F_PKTS_DROPPED_TOTAL, SNMP_DB_ID_SNMP, 16,
     sizeof(uint32_t), "SNMP_F_PKTS_DROPPED_TOTAL" },
 
+  /* ftps.tlsSessions fields */
+  { SNMP_DB_FTPS_SESS_F_SESS_COUNT, SNMP_DB_ID_TLS, 0,
+    sizeof(uint32_t), "FTPS_SESS_F_SESS_COUNT" },
+  { SNMP_DB_FTPS_SESS_F_SESS_TOTAL, SNMP_DB_ID_TLS, 4,
+    sizeof(uint32_t), "FTPS_SESS_F_SESS_TOTAL" },
+  { SNMP_DB_FTPS_SESS_F_CTRL_HANDSHAKE_ERR_TOTAL, SNMP_DB_ID_TLS, 8,
+    sizeof(uint32_t), "FTPS_SESS_F_CTRL_HANDSHAKE_ERR_TOTAL" },
+  { SNMP_DB_FTPS_SESS_F_DATA_HANDSHAKE_ERR_TOTAL, SNMP_DB_ID_TLS, 12,
+    sizeof(uint32_t), "FTPS_SESS_F_DATA_HANDSHAKE_ERR_TOTAL" },
+
+  /* ftps.tlsLogins fields */
+  { SNMP_DB_FTPS_LOGINS_F_TOTAL, SNMP_DB_ID_TLS, 16,
+    sizeof(uint32_t), "FTPS_LOGINS_F_TOTAL" },
+  { SNMP_DB_FTPS_LOGINS_F_ERR_TOTAL, SNMP_DB_ID_TLS, 20,
+    sizeof(uint32_t), "FTPS_LOGINS_F_ERR_TOTAL" },
+
+  /* ftps.tlsDataTransfers fields */
+  { SNMP_DB_FTPS_XFERS_F_DIR_LIST_COUNT, SNMP_DB_ID_TLS, 24,
+    sizeof(uint32_t), "FTPS_XFERS_F_DIR_LIST_COUNT" },
+  { SNMP_DB_FTPS_XFERS_F_DIR_LIST_TOTAL, SNMP_DB_ID_TLS, 28,
+    sizeof(uint32_t), "FTPS_XFERS_F_DIR_LIST_TOTAL" },
+  { SNMP_DB_FTPS_XFERS_F_DIR_LIST_ERR_TOTAL, SNMP_DB_ID_TLS, 32,
+    sizeof(uint32_t), "FTPS_XFERS_F_DIR_LIST_ERR_TOTAL" },
+  { SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_COUNT, SNMP_DB_ID_TLS, 36,
+    sizeof(uint32_t), "FTPS_XFERS_F_FILE_UPLOAD_COUNT" },
+  { SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_TOTAL, SNMP_DB_ID_TLS, 40,
+    sizeof(uint32_t), "FTPS_XFERS_F_FILE_UPLOAD_TOTAL" },
+  { SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_ERR_TOTAL, SNMP_DB_ID_TLS, 44,
+    sizeof(uint32_t), "FTPS_XFERS_F_FILE_UPLOAD_ERR_TOTAL" },
+  { SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_COUNT, SNMP_DB_ID_TLS, 48,
+    sizeof(uint32_t), "FTPS_XFERS_F_FILE_DOWNLOAD_COUNT" },
+  { SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_TOTAL, SNMP_DB_ID_TLS, 52,
+    sizeof(uint32_t), "FTPS_XFERS_F_FILE_DOWNLOAD_TOTAL" },
+  { SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL, SNMP_DB_ID_TLS, 56,
+    sizeof(uint32_t), "FTPS_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL" },
+  { SNMP_DB_FTPS_XFERS_F_KB_UPLOAD_TOTAL, SNMP_DB_ID_TLS, 60,
+    sizeof(uint32_t), "FTPS_XFERS_F_KB_UPLOAD_TOTAL" },
+  { SNMP_DB_FTPS_XFERS_F_KB_DOWNLOAD_TOTAL, SNMP_DB_ID_TLS, 64,
+    sizeof(uint32_t), "FTPS_XFERS_F_KB_DOWNLOAD_TOTAL" },
+
   { 0, -1, 0, 0 }
 };
 
@@ -216,22 +255,35 @@ static struct snmp_db_info snmp_dbs[] = {
 
   /* The size of the ftp table is calculated as:
    *
-   *  3 session fields       x 4 bytes = 12 bytes
-   *  7 login fields         x 4 bytes = 28 bytes
-   *  8 data transfer fields x 4 bytes = 32 bytes
-   *  4 timeout fields       x 4 bytes = 16 bytes
+   *  3 session fields        x 4 bytes = 12 bytes
+   *  7 login fields          x 4 bytes = 28 bytes
+   *  11 data transfer fields x 4 bytes = 44 bytes
+   *  4 timeout fields        x 4 bytes = 16 bytes
    *
-   * for a total of 88 bytes.
+   * for a total of 100 bytes.
    */
-  { SNMP_DB_ID_FTP, -1, "ftp.dat", NULL, NULL, 88 },
+  { SNMP_DB_ID_FTP, -1, "ftp.dat", NULL, NULL, 100 },
 
-  /* Five numeric fields only in this table: 5 x 4 bytes = 20 bytes */
+  /* The size of the snmp table is calculated as:
+   *
+   *  4 fields               x 4 bytes = 20 bytes
+   */
   { SNMP_DB_ID_SNMP, -1, "snmp.dat", NULL, NULL, 20 },
 
-#if 0
-  { SNMP_DB_ID_SSL, -1, "ssl.dat", NULL, NULL, 0 },
+  /* The size of the ftps table is calculated as:
+   *
+   *  4 session fields        x 4 bytes = 16 bytes
+   *  2 login fields          x 4 bytes =  8 bytes
+   *  11 data transfer fields x 4 bytes = 44 bytes
+   *
+   * for a total of 68 bytes.
+   */
+  { SNMP_DB_ID_TLS, -1, "tls.dat", NULL, NULL, 68 },
 
-  { SNMP_DB_ID_SSH, -1, "ssh.dat", NULL, NULL, 0 },
+#if 0
+  { SNMP_DB_ID_SFTP, -1, "sftp.dat", NULL, NULL, 0 },
+
+  { SNMP_DB_ID_SCP, -1, "scp.dat", NULL, NULL, 0 },
 
   { SNMP_DB_ID_SQL, -1, "sql.dat", NULL, NULL, 0 },
 
