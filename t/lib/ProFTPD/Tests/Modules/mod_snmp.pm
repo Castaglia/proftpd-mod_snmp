@@ -84,7 +84,12 @@ my $TESTS = {
   },
 
   # XXX Need unit tests for the ftp.sessions, ftp.logins, ftp.dataTransfers
-  snmp_v1_get_upload_counts => {
+  snmp_v1_get_ftp_sess_counts => {
+    order => ++$order,
+    test_class => [qw(forking snmp)],
+  },
+
+  snmp_v1_get_ftp_xfer_upload_counts => {
     order => ++$order,
     test_class => [qw(forking snmp)],
   },
@@ -284,7 +289,76 @@ sub get_conn_info {
   return ($conn_count, $conn_total);
 }
 
-sub get_upload_info {
+sub get_ftp_sess_info {
+  my $agent_port = shift;
+  my $snmp_community = shift;
+
+  my ($snmp_sess, $snmp_err) = Net::SNMP->session(
+    -hostname => '127.0.0.1',
+    -port => $agent_port,
+    -version => 'snmpv1',
+    -community => $snmp_community,
+    -retries => 1,
+    -timeout => 3,
+    -translate => 1,
+  );
+  unless ($snmp_sess) {
+    die("Unable to create Net::SNMP session: $snmp_err");
+  }
+
+  if ($ENV{TEST_VERBOSE}) {
+    # From the Net::SNMP debug perldocs
+    my $debug_mask = (0x02|0x10|0x20);
+    $snmp_sess->debug($debug_mask);
+  }
+
+  # sessionCount
+  my $sess_count_oid = '1.3.6.1.4.1.17852.2.2.2.1.1.0';
+
+  # fileUploadTotal
+  my $sess_total_oid = '1.3.6.1.4.1.17852.2.2.2.1.2.0';
+
+  my $oids = [
+    $sess_count_oid,
+    $sess_total_oid,
+  ];
+
+  my $snmp_resp = $snmp_sess->get_request(
+    -varbindList => $oids,
+  );
+  unless ($snmp_resp) {
+    die("No SNMP response received: " . $snmp_sess->error());
+  }
+
+  my ($sess_count, $sess_total);
+
+  # Do we have the requested OIDs in the response?
+
+  foreach my $oid (@$oids) {
+    unless (defined($snmp_resp->{$oid})) {
+      die("Missing required OID $oid in response");
+    }
+
+    my $value = $snmp_resp->{$oid};
+    if ($ENV{TEST_VERBOSE}) {
+      print STDERR "Requested OID $oid = $value\n";
+    }
+
+    if ($oid eq $sess_count_oid) {
+      $sess_count = $value;
+
+    } elsif ($oid eq $sess_total_oid) {
+      $sess_total = $value;
+    }
+  }
+
+  $snmp_sess->close();
+  $snmp_sess = undef;
+
+  return ($sess_count, $sess_total);
+}
+
+sub get_ftp_xfer_upload_info {
   my $agent_port = shift;
   my $snmp_community = shift;
 
@@ -2540,7 +2614,186 @@ sub snmp_v1_get_daemon_maxinsts_count {
   unlink($log_file);
 }
 
-sub snmp_v1_get_upload_counts {
+sub snmp_v1_get_ftp_sess_counts {
+  my $self = shift;
+  my $tmpdir = $self->{tmpdir};
+
+  my $config_file = "$tmpdir/snmp.conf";
+  my $pid_file = File::Spec->rel2abs("$tmpdir/snmp.pid");
+  my $scoreboard_file = File::Spec->rel2abs("$tmpdir/snmp.scoreboard");
+
+  my $log_file = test_get_logfile();
+
+  my $auth_user_file = File::Spec->rel2abs("$tmpdir/snmp.passwd");
+  my $auth_group_file = File::Spec->rel2abs("$tmpdir/snmp.group");
+
+  my $user = 'proftpd';
+  my $passwd = 'test';
+  my $group = 'ftpd';
+  my $home_dir = File::Spec->rel2abs($tmpdir);
+  my $uid = 500;
+  my $gid = 500;
+
+  my $table_dir = File::Spec->rel2abs("$tmpdir/var/snmp");
+
+  # Make sure that, if we're running as root, that the home directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $home_dir, $table_dir)) {
+      die("Can't set perms on $home_dir to 0755: $!");
+    }
+
+    unless (chown($uid, $gid, $home_dir, $table_dir)) {
+      die("Can't set owner of $home_dir to $uid/$gid: $!");
+    }
+  }
+
+  auth_user_write($auth_user_file, $user, $passwd, $uid, $gid, $home_dir,
+    '/bin/bash');
+  auth_group_write($auth_group_file, $group, $gid, $user);
+
+  my $agent_port = ProFTPD::TestSuite::Utils::get_high_numbered_port();
+  my $snmp_community = "public";
+
+  my $timeout_idle = 45;
+
+  my $config = {
+    TraceLog => $log_file,
+    Trace => 'snmp:20 snmp.asn1:20 snmp.db:20 snmp.msg:20 snmp.pdu:20 snmp.smi:20',
+    PidFile => $pid_file,
+    ScoreboardFile => $scoreboard_file,
+    SystemLog => $log_file,
+
+    AuthUserFile => $auth_user_file,
+    AuthGroupFile => $auth_group_file,
+    TimeoutIdle => $timeout_idle + 1,
+
+    IfModules => {
+      'mod_delay.c' => {
+        DelayEngine => 'off',
+      },
+
+      'mod_snmp.c' => {
+        SNMPAgent => "master 127.0.0.1:$agent_port",
+        SNMPCommunity => $snmp_community,
+        SNMPEngine => 'on',
+        SNMPLog => $log_file,
+        SNMPTables => $table_dir,
+      },
+    },
+  };
+
+  my ($port, $config_user, $config_group) = config_write($config_file, $config);
+
+  # Open pipes, for use between the parent and child processes.  Specifically,
+  # the child will indicate when it's done with its test by writing a message
+  # to the parent.
+  my ($rfh, $wfh);
+  unless (pipe($rfh, $wfh)) {
+    die("Can't open pipe: $!");
+  }
+
+  require Net::SNMP;
+
+  my $ex;
+
+  # Fork child
+  $self->handle_sigchld();
+  defined(my $pid = fork()) or die("Can't fork: $!");
+  if ($pid) {
+    eval {
+      my $expected;
+
+      # First, get the session count
+      my ($sess_count, $sess_total) = get_ftp_sess_info($agent_port,
+        $snmp_community);
+
+      $expected = 0;
+      $self->assert($sess_count == $expected,
+        test_msg("Expected session count $expected, got $sess_count"));
+
+      $expected = 0;
+      $self->assert($sess_total == $expected,
+        test_msg("Expected session total $expected, got $sess_total"));
+
+      # Now, login
+      my $client = ProFTPD::TestSuite::FTP->new('127.0.0.1', $port);
+
+      # Get the session counts again.  We've only connected, not logged in,
+      # so the session counts should not have changed.
+      ($sess_count, $sess_total) = get_ftp_sess_info($agent_port, $snmp_community);
+
+      $expected = 0;
+      $self->assert($sess_count == $expected,
+        test_msg("Expected session count $expected, got $sess_count"));
+
+      $expected = 0;
+      $self->assert($sess_total == $expected,
+        test_msg("Expected session total $expected, got $sess_total"));
+
+      # Login.
+      $client->login($user, $passwd);
+
+      # Then, get the session counts again
+      ($sess_count, $sess_total) = get_ftp_sess_info($agent_port, $snmp_community);
+
+      $expected = 1;
+      $self->assert($sess_count == $expected,
+        test_msg("Expected session count $expected, got $sess_count"));
+
+      $expected = 1;
+      $self->assert($sess_total == $expected,
+        test_msg("Expected session total $expected, got $sess_total"));
+
+      # Now log out
+      $client->quit();
+      $client = undef;
+
+      # And get the session counts one more time, make sure it's what we expect
+      ($sess_count, $sess_total) = get_ftp_sess_info($agent_port, $snmp_community);
+
+      $expected = 0;
+      $self->assert($sess_count == $expected,
+        test_msg("Expected session count $expected, got $sess_count"));
+
+      $expected = 1;
+      $self->assert($sess_total == $expected,
+        test_msg("Expected session total $expected, got $sess_total"));
+    };
+
+    if ($@) {
+      $ex = $@;
+    }
+
+    $wfh->print("done\n");
+    $wfh->flush();
+
+  } else {
+    eval { server_wait($config_file, $rfh, $timeout_idle) };
+    if ($@) {
+      warn($@);
+      exit 1;
+    }
+
+    exit 0;
+  }
+
+  # Stop server
+  server_stop($pid_file);
+
+  $self->assert_child_ok($pid);
+
+  if ($ex) {
+    test_append_logfile($log_file, $ex);
+    unlink($log_file);
+
+    die($ex);
+  }
+
+  unlink($log_file);
+}
+
+sub snmp_v1_get_ftp_xfer_upload_counts {
   my $self = shift;
   my $tmpdir = $self->{tmpdir};
 
@@ -2631,7 +2884,7 @@ sub snmp_v1_get_upload_counts {
       my $expected;
 
       # First, get the upload count/KB
-      my ($file_count, $file_total, $kb_count) = get_upload_info($agent_port,
+      my ($file_count, $file_total, $kb_count) = get_ftp_xfer_upload_info($agent_port,
         $snmp_community);
 
       $expected = 0;
@@ -2652,7 +2905,7 @@ sub snmp_v1_get_upload_counts {
       upload_file($port, $user, $passwd, $file_path, $file_kb_len);
 
       # Then, get the upload count/KB again
-      ($file_count, $file_total, $kb_count) = get_upload_info($agent_port, $snmp_community);
+      ($file_count, $file_total, $kb_count) = get_ftp_xfer_upload_info($agent_port, $snmp_community);
 
       $expected = 0;
       $self->assert($file_count == $expected,
@@ -2671,7 +2924,7 @@ sub snmp_v1_get_upload_counts {
       upload_file($port, $user, $passwd, $file_path, $file_kb_len);
 
       # Get the upload count/KB one more time, make sure it's what we expect
-      ($file_count, $file_total, $kb_count) = get_upload_info($agent_port, $snmp_community);
+      ($file_count, $file_total, $kb_count) = get_ftp_xfer_upload_info($agent_port, $snmp_community);
 
       $expected = 0;
       $self->assert($file_count == $expected,
@@ -2689,7 +2942,7 @@ sub snmp_v1_get_upload_counts {
       # reset somehow on the server's side).
       sleep(5);
 
-      ($file_count, $file_total, $kb_count) = get_upload_info($agent_port, $snmp_community);
+      ($file_count, $file_total, $kb_count) = get_ftp_xfer_upload_info($agent_port, $snmp_community);
 
       $expected = 0;
       $self->assert($file_count == $expected,
