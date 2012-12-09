@@ -307,13 +307,20 @@ sub get_upload_info {
     $snmp_sess->debug($debug_mask);
   }
 
+  # fileUploadCount
+  my $upload_file_count_oid = '1.3.6.1.4.1.17852.2.2.2.3.4.0';
+
   # fileUploadTotal
-  my $upload_file_oid = '1.3.6.1.4.1.17852.2.2.2.3.3.0';
+  my $upload_file_total_oid = '1.3.6.1.4.1.17852.2.2.2.3.5.0';
 
   # kbUploadTotal
-  my $upload_kb_oid = '1.3.6.1.4.1.17852.2.2.2.3.7.0';
+  my $upload_kb_oid = '1.3.6.1.4.1.17852.2.2.2.3.10.0';
 
-  my $oids = [$upload_file_oid, $upload_kb_oid];
+  my $oids = [
+    $upload_file_count_oid,
+    $upload_file_total_oid,
+    $upload_kb_oid
+  ];
 
   my $snmp_resp = $snmp_sess->get_request(
     -varbindList => $oids,
@@ -322,7 +329,7 @@ sub get_upload_info {
     die("No SNMP response received: " . $snmp_sess->error());
   }
 
-  my ($file_count, $kb_count);
+  my ($file_count, $file_total, $kb_count);
 
   # Do we have the requested OIDs in the response?
 
@@ -336,8 +343,11 @@ sub get_upload_info {
       print STDERR "Requested OID $oid = $value\n";
     }
 
-    if ($oid eq $upload_file_oid) {
+    if ($oid eq $upload_file_count_oid) {
       $file_count = $value;
+
+    } elsif ($oid eq $upload_file_total_oid) {
+      $file_total = $value;
 
     } elsif ($oid eq $upload_kb_oid) {
       $kb_count = $value;
@@ -347,7 +357,7 @@ sub get_upload_info {
   $snmp_sess->close();
   $snmp_sess = undef;
 
-  return ($file_count, $kb_count);
+  return ($file_count, $file_total, $kb_count);
 }
 
 sub upload_file {
@@ -2621,12 +2631,16 @@ sub snmp_v1_get_upload_counts {
       my $expected;
 
       # First, get the upload count/KB
-      my ($file_count, $kb_count) = get_upload_info($agent_port,
+      my ($file_count, $file_total, $kb_count) = get_upload_info($agent_port,
         $snmp_community);
 
       $expected = 0;
       $self->assert($file_count == $expected,
         test_msg("Expected upload file count $expected, got $file_count"));
+
+      $expected = 0;
+      $self->assert($file_total == $expected,
+        test_msg("Expected upload file total $expected, got $file_total"));
 
       $expected = 0;
       $self->assert($kb_count == $expected,
@@ -2638,11 +2652,15 @@ sub snmp_v1_get_upload_counts {
       upload_file($port, $user, $passwd, $file_path, $file_kb_len);
 
       # Then, get the upload count/KB again
-      ($file_count, $kb_count) = get_upload_info($agent_port, $snmp_community);
+      ($file_count, $file_total, $kb_count) = get_upload_info($agent_port, $snmp_community);
 
-      $expected = 1;
+      $expected = 0;
       $self->assert($file_count == $expected,
         test_msg("Expected upload file count $expected, got $file_count"));
+
+      $expected = 1;
+      $self->assert($file_total == $expected,
+        test_msg("Expected upload file total $expected, got $file_total"));
 
       $expected = $file_kb_len;
       $self->assert($kb_count == $expected,
@@ -2653,11 +2671,15 @@ sub snmp_v1_get_upload_counts {
       upload_file($port, $user, $passwd, $file_path, $file_kb_len);
 
       # Get the upload count/KB one more time, make sure it's what we expect
-      ($file_count, $kb_count) = get_upload_info($agent_port, $snmp_community);
+      ($file_count, $file_total, $kb_count) = get_upload_info($agent_port, $snmp_community);
 
-      $expected = 2;
+      $expected = 0;
       $self->assert($file_count == $expected,
         test_msg("Expected upload file count $expected, got $file_count"));
+
+      $expected = 2;
+      $self->assert($file_total == $expected,
+        test_msg("Expected upload file total $expected, got $file_total"));
 
       $expected = ($file_kb_len * 2);
       $self->assert($kb_count == $expected,
@@ -2667,11 +2689,15 @@ sub snmp_v1_get_upload_counts {
       # reset somehow on the server's side).
       sleep(5);
 
-      ($file_count, $kb_count) = get_upload_info($agent_port, $snmp_community);
+      ($file_count, $file_total, $kb_count) = get_upload_info($agent_port, $snmp_community);
 
-      $expected = 2;
+      $expected = 0;
       $self->assert($file_count == $expected,
         test_msg("Expected upload file count $expected, got $file_count"));
+
+      $expected = 2;
+      $self->assert($file_total == $expected,
+        test_msg("Expected upload file total $expected, got $file_total"));
 
       $expected = ($file_kb_len * 2);
       $self->assert($kb_count == $expected,

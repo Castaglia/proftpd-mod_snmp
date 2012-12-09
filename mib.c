@@ -257,6 +257,13 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_SMI_COUNTER32 },
 
   /* ftp.dataTransfers MIBs */
+  { { SNMP_MIB_FTP_XFERS_OID_DIR_LIST_COUNT, 0 },
+    SNMP_MIB_FTP_XFERS_OIDLEN_DIR_LIST_COUNT + 1,
+    SNMP_DB_FTP_XFERS_F_DIR_LIST_COUNT,
+    SNMP_MIB_NAME_PREFIX "ftp.dataTransfers.dirListCount",
+    SNMP_MIB_NAME_PREFIX "ftp.dataTransfers.dirListCount.0",
+    SNMP_SMI_GAUGE32 },
+
   { { SNMP_MIB_FTP_XFERS_OID_DIR_LIST_TOTAL, 0 },
     SNMP_MIB_FTP_XFERS_OIDLEN_DIR_LIST_TOTAL + 1,
     SNMP_DB_FTP_XFERS_F_DIR_LIST_TOTAL,
@@ -271,6 +278,13 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ftp.dataTransfers.dirListFailedTotal.0",
     SNMP_SMI_COUNTER32 },
 
+  { { SNMP_MIB_FTP_XFERS_OID_FILE_UPLOAD_COUNT, 0 },
+    SNMP_MIB_FTP_XFERS_OIDLEN_FILE_UPLOAD_COUNT + 1,
+    SNMP_DB_FTP_XFERS_F_FILE_UPLOAD_COUNT,
+    SNMP_MIB_NAME_PREFIX "ftp.dataTransfers.fileUploadCount",
+    SNMP_MIB_NAME_PREFIX "ftp.dataTransfers.fileUploadCount.0",
+    SNMP_SMI_GAUGE32 },
+
   { { SNMP_MIB_FTP_XFERS_OID_FILE_UPLOAD_TOTAL, 0 },
     SNMP_MIB_FTP_XFERS_OIDLEN_FILE_UPLOAD_TOTAL + 1,
     SNMP_DB_FTP_XFERS_F_FILE_UPLOAD_TOTAL,
@@ -284,6 +298,13 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ftp.dataTransfers.fileUploadFailedTotal",
     SNMP_MIB_NAME_PREFIX "ftp.dataTransfers.fileUploadFailedTotal.0",
     SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTP_XFERS_OID_FILE_DOWNLOAD_COUNT, 0 },
+    SNMP_MIB_FTP_XFERS_OIDLEN_FILE_DOWNLOAD_COUNT + 1,
+    SNMP_DB_FTP_XFERS_F_FILE_DOWNLOAD_COUNT,
+    SNMP_MIB_NAME_PREFIX "ftp.dataTransfers.fileDownloadCount",
+    SNMP_MIB_NAME_PREFIX "ftp.dataTransfers.fileDownloadCount.0",
+    SNMP_SMI_GAUGE32 },
 
   { { SNMP_MIB_FTP_XFERS_OID_FILE_DOWNLOAD_TOTAL, 0 },
     SNMP_MIB_FTP_XFERS_OIDLEN_FILE_DOWNLOAD_TOTAL + 1,
