@@ -51,6 +51,19 @@ snmpModule MODULE-IDENTITY
         tlsLogins                OBJECT IDENTIFIER ::= { ftps 2 }
         tlsDataTransfers         OBJECT IDENTIFIER ::= { ftps 3 }
 
+        ssh                      OBJECT IDENTIFIER ::= { snmpModule 5 }
+        sshSessions              OBJECT IDENTIFIER ::= { ssh 1 }
+        sshAuths                 OBJECT IDENTIFIER ::= { sshSessions 1 }
+        sshLogins                OBJECT IDENTIFIER ::= { ssh 2 }
+
+        sftp                     OBJECT IDENTIFIER ::= { snmpModule 6 }
+        sftpSessions             OBJECT IDENTIFIER ::= { sftp 1 }
+        sftpDataTransfers        OBJECT IDENTIFIER ::= { sftp 2 }
+
+        scp                      OBJECT IDENTIFIER ::= { snmpModule 7 }
+        scpSessions              OBJECT IDENTIFIER ::= { scp 1 }
+        scpDataTransfers         OBJECT IDENTIFIER ::= { scp 3 }
+
 --
 -- connection arc
 --
@@ -202,7 +215,7 @@ snmpModule MODULE-IDENTITY
         ::= { daemon 11 }
 
 --
--- daemon.notifications arc
+-- daemon.daemonNotifications arc
 --
 
 --
@@ -648,6 +661,359 @@ snmpModule MODULE-IDENTITY
             DESCRIPTION
                 " Total number of KB downloaded via FTPS "
         ::= { tlsDataTransfers 11 }
+
+--
+-- ssh arc
+--
+
+--
+-- ssh.sshSessions.sshAuths arc
+--
+        hostbasedAuthCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of SSH2 sessions authenticated using hostbased authentication "
+        ::= { sshAuths 1 }
+
+        hostbasedAuthTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 sessions authenticated using hostbased authentication "
+        ::= { sshAuths 2 }
+
+        hostbasedAuthFailureTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 hostbased authentication failures "
+        ::= { sshAuths 3 }
+
+        keyboardInteractiveAuthCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of SSH2 sessions authenticated using keyboard-interactive authentication "
+        ::= { sshAuths 4 }
+
+        keyboardInteractiveAuthTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 sessions authenticated using keyboard-interactive authentication "
+        ::= { sshAuths 5 }
+
+        keyboardInteractiveAuthFailureTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 keyboard-interactive authentication failures "
+        ::= { sshAuths 6 }
+
+        passwordAuthCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of SSH2 sessions authenticated using password authentication "
+        ::= { sshAuths 7 }
+
+        passwordAuthTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 sessions authenticated using password authentication "
+        ::= { sshAuths 8 }
+
+        passwordAuthFailureTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 password authentication failures "
+        ::= { sshAuths 9 }
+
+        publickeyAuthCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of SSH2 sessions authenticated using publickey authentication "
+        ::= { sshAuths 10 }
+
+        publickeyAuthTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 sessions authenticated using publickey authentication "
+        ::= { sshAuths 11 }
+
+        publickeyAuthFailureTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 publickey authentication failures "
+        ::= { sshAuths 12 }
+
+--
+-- ssh.sshSessions arc
+--
+        keyExchangeFailureTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 key exchange failures "
+        ::= { sshSessions 2 }
+
+        compressionCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of SSH2 sessions currently using compression "
+        ::= { sshSessions 3 }
+
+        compressionTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 sessions using compression "
+        ::= { sshSessions 4 }
+
+--
+-- ssh.sshLogins arc
+--
+        loginTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of successful SSH2 logins "
+        ::= { sshLogins 1 }
+
+        loginFailedTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of failed SSH2 logins "
+        ::= { sshLogins 2 }
+
+--
+-- sftp arc
+--
+
+--
+-- sftp.sftpSessions arc
+--
+        sessionCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of current SFTP sessions "
+        ::= { sftpSessions 1 }
+
+        sessionTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SFTP sessions "
+        ::= { sftpSessions 2 }
+
+--
+-- sftp.sftpDataTransfers arc
+--
+        dirListCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of directories being listed via SFTP "
+        ::= { sftpDataTransfers 1 }
+
+        dirListTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of directories successfully listed via SFTP "
+        ::= { sftpDataTransfers 2 }
+
+        dirListFailedTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of directory list failures via SFTP "
+        ::= { sftpDataTransfers 3 }
+
+        fileUploadCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of files being uploaded via SFTP "
+        ::= { sftpDataTransfers 4 }
+
+        fileUploadTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of files uploaded successfully via SFTP "
+        ::= { sftpDataTransfers 5 }
+
+        fileUploadFailedTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of file upload failures via SFTP "
+        ::= { sftpDataTransfers 6 }
+
+        fileDownloadCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of directories being listed via SFTP "
+        ::= { sftpDataTransfers 7 }
+
+        fileDownloadTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of files downloaded successfully via SFTP "
+        ::= { sftpDataTransfers 8 }
+
+        fileDownloadFailedTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of file download failures via SFTP "
+        ::= { sftpDataTransfers 9 }
+
+        kbUploadTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of KB uploaded via SFTP "
+        ::= { sftpDataTransfers 10 }
+
+        kbDownloadTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of KB downloaded via SFTP "
+        ::= { sftpDataTransfers 11 }
+
+--
+-- scp arc
+--
+
+--
+-- scp.scpSessions arc
+--
+        sessionCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of current SCP sessions "
+        ::= { scpSessions 1 }
+
+        sessionTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SCP sessions "
+        ::= { scpSessions 2 }
+
+--
+-- scp.scpDataTransfers arc
+--
+        fileUploadCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of files being uploaded via SCP "
+        ::= { scpDataTransfers 1 }
+
+        fileUploadTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of files uploaded successfully via SCP "
+        ::= { scpDataTransfers 2 }
+
+        fileUploadFailedTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of file upload failures via SCP "
+        ::= { scpDataTransfers 3 }
+
+        fileDownloadCount OBJECT-TYPE
+            SYNTAX Gauge32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Count of directories being listed via SCP "
+        ::= { scpDataTransfers 4 }
+
+        fileDownloadTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of files downloaded successfully via SCP "
+        ::= { scpDataTransfers 5 }
+
+        fileDownloadFailedTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of file download failures via SCP "
+        ::= { scpDataTransfers 6 }
+
+        kbUploadTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of KB uploaded via SCP "
+        ::= { scDataTransfers 10 }
+
+        kbDownloadTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of KB downloaded via SCP "
+        ::= { scDataTransfers 11 }
 
 -- end of PROFTPD-MIB
 --
