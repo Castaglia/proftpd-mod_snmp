@@ -32,24 +32,24 @@ snmpModule MODULE-IDENTITY
 --
 -- OID Assignments
 --
-        connection         OBJECT IDENTIFIER ::= { snmpModule 0 }
+        connection               OBJECT IDENTIFIER ::= { snmpModule 0 }
 
-        daemon             OBJECT IDENTIFIER ::= { snmpModule 1 }
-        notifications      OBJECT IDENTIFIER ::= { daemon 1 }
+        daemon                   OBJECT IDENTIFIER ::= { snmpModule 1 }
+        daemonNotifications      OBJECT IDENTIFIER ::= { daemon 1 }
 
-        ftp                OBJECT IDENTIFIER ::= { snmpModule 2 }
-        sessions           OBJECT IDENTIFIER ::= { ftp 1 }
-        logins             OBJECT IDENTIFIER ::= { ftp 2 }
-        dataTransfers      OBJECT IDENTIFIER ::= { ftp 3 }
-        timeouts           OBJECT IDENTIFIER ::= { ftp 4 }
-        ftPNotifications   OBJECT IDENTIFIER ::= { ftp 5 }
+        ftp                      OBJECT IDENTIFIER ::= { snmpModule 2 }
+        sessions                 OBJECT IDENTIFIER ::= { ftp 1 }
+        logins                   OBJECT IDENTIFIER ::= { ftp 2 }
+        dataTransfers            OBJECT IDENTIFIER ::= { ftp 3 }
+        timeouts                 OBJECT IDENTIFIER ::= { ftp 4 }
+        ftpNotifications         OBJECT IDENTIFIER ::= { ftp 5 }
 
-        snmp               OBJECT IDENTIFIER ::= { snmpModule 3 }
+        snmp                     OBJECT IDENTIFIER ::= { snmpModule 3 }
 
-        ftps               OBJECT IDENTIFIER ::= { snmpModule 4 }
-        tlsSessions        OBJECT IDENTIFIER ::= { ftps 1 }
-        tlsLogins          OBJECT IDENTIFIER ::= { ftps 2 }
-        tlsDataTransfers   OBJECT IDENTIFIER ::= { ftps 3 }
+        ftps                     OBJECT IDENTIFIER ::= { snmpModule 4 }
+        tlsSessions              OBJECT IDENTIFIER ::= { ftps 1 }
+        tlsLogins                OBJECT IDENTIFIER ::= { ftps 2 }
+        tlsDataTransfers         OBJECT IDENTIFIER ::= { ftps 3 }
 
 --
 -- connection arc
@@ -435,7 +435,7 @@ snmpModule MODULE-IDENTITY
             STATUS  current
             DESCRIPTION
                 " Notification of a client using a bad password "
-        ::= { notifications 1 }
+        ::= { ftpNotifications 1 }
 
         loginFailedBadUser NOTIFICATION-TYPE
             OBJECTS { serverName,
@@ -448,7 +448,7 @@ snmpModule MODULE-IDENTITY
             STATUS  current
             DESCRIPTION
                 " Notification of a client using a bad/unknown user name "
-        ::= { notifications 2 }
+        ::= { ftpNotifications 2 }
 
 --      maxLoginAttemptsExceeded
 --      loginFailedMaxClientsExceeded
