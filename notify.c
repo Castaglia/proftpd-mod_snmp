@@ -374,13 +374,19 @@ int snmp_notify_generate(pool *p, int sockfd, const char *community,
   }
 
   snmp_packet_write(p, fd, pkt);
-  destroy_pool(pkt->pool);
 
   /* If we opened our own socket here, then close it. */
   if (sockfd < 0) {
     (void) close(fd);
   }
 
+  res = snmp_db_incr_value(pkt->pool, SNMP_DB_SNMP_F_TRAPS_SENT_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing snmp.trapsSentTotal: %s", strerror(errno));
+  }
+
+  destroy_pool(pkt->pool);
   return 0;
 }
 
