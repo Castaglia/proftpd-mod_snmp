@@ -11,10 +11,7 @@ IMPORTS
                 FROM SNMPv2-SMI
 
         DisplayString
-                FROM SNMPv2-TC
-
-        InetAddressType, InetAddress, InetPortNumber
-                FROM INET-ADDRESS-MIB;
+                FROM SNMPv2-TC;
 
 proftpd OBJECT IDENTIFIER ::= { enterprises 17852 }
 modules OBJECT IDENTIFIER ::= { proftpd 2 }
@@ -31,6 +28,7 @@ snmpModule MODULE-IDENTITY
                 file transfer server. See http://www.proftpd.org/."
 
     REVISION      "1110130000Z"
+
     ::= { modules 2 }
 
 --
@@ -62,53 +60,37 @@ snmpModule MODULE-IDENTITY
                 " ServerName of server to which client connected "
         ::= { connection 1 }
 
-        serverAddressType OBJECT-TYPE
-            SYNTAX InetAddressType
-            MAX-ACCESS accessible-for-notify
-            STATUS current
-            DESCRIPTION
-                " IP address type of server to which client connected "
-        ::= { connection 2 }
-
         serverAddress OBJECT-TYPE
-            SYNTAX InetAddress
+            SYNTAX DisplayString
             MAX-ACCESS accessible-for-notify
             STATUS current
             DESCRIPTION
                 " IP address of server to which client connected "
-        ::= { connection 3 }
+        ::= { connection 2 }
 
         serverPort OBJECT-TYPE
-            SYNTAX InetPortNumber
+            SYNTAX Gauge32
             MAX-ACCESS accessible-for-notify
             STATUS current
             DESCRIPTION
                 " Port of server to which client connected "
-        ::= { connection 4 }
-
-        clientAddressType OBJECT-TYPE
-            SYNTAX InetAddressType
-            MAX-ACCESS accessible-for-notify
-            STATUS current
-            DESCRIPTION
-                " IP address type of connected client "
-        ::= { connection 5 }
+        ::= { connection 3 }
 
         clientAddress OBJECT-TYPE
-            SYNTAX InetAddress
+            SYNTAX DisplayString
             MAX-ACCESS accessible-for-notify
             STATUS current
             DESCRIPTION
                 " IP address of connected client "
-        ::= { connection 6 }
+        ::= { connection 4 }
 
         processId OBJECT-TYPE
-            SYNTAX Unsigned32
+            SYNTAX Gauge32
             MAX-ACCESS accessible-for-notify
             STATUS current
             DESCRIPTION
                 " ID of process handling the client/server connection "
-        ::= { connection 7 }
+        ::= { connection 5 }
 
         userName OBJECT-TYPE
             SYNTAX DisplayString
@@ -116,7 +98,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " User name for connecting client "
-        ::= { connection 8 }
+        ::= { connection 6 }
 
 --
 -- daemon arc
@@ -145,7 +127,7 @@ snmpModule MODULE-IDENTITY
                 " Server administrator email address "
         ::= { daemon 3 }
 
-        uptime  OBJECT-TYPE
+        uptime OBJECT-TYPE
             SYNTAX TimeTicks
             MAX-ACCESS read-only
             STATUS current
@@ -408,13 +390,10 @@ snmpModule MODULE-IDENTITY
 --
 -- ftp.notifications arc
 --
-
         loginBadPassword NOTIFICATION-TYPE
             OBJECTS { serverName,
-                      serverAddressType,
                       serverAddress,
                       serverPort,
-                      clientAddressType,
                       clientAddress,
                       processId,
                       userName }
