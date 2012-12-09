@@ -53,10 +53,15 @@ struct snmp_packet *snmp_packet_create(pool *p) {
   return pkt;
 }
 
-void snmp_packet_write(pool *p, int sockfd, struct snmp_packet *pkt) {
+int snmp_packet_write(pool *p, int sockfd, struct snmp_packet *pkt) {
   int res;
   fd_set writefds;
   struct timeval tv;
+
+  if (sockfd < 0) {
+    errno = EINVAL;
+    return -1; 
+  }
 
   FD_ZERO(&writefds);
   FD_SET(sockfd, &writefds);
@@ -72,6 +77,8 @@ void snmp_packet_write(pool *p, int sockfd, struct snmp_packet *pkt) {
         pr_signals_handle();
         continue;
       }
+
+      return -1;
     }
 
     break;
@@ -127,4 +134,6 @@ void snmp_packet_write(pool *p, int sockfd, struct snmp_packet *pkt) {
         "error incrementing snmp.packetsDroppedTotal: %s", strerror(errno));
     }
   }
+
+  return res;
 }

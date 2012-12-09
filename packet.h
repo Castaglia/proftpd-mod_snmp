@@ -60,6 +60,6 @@ struct snmp_packet {
 };
 
 struct snmp_packet *snmp_packet_create(pool *p);
-void snmp_packet_write(pool *p, int sockfd, struct snmp_packet *pkt);
+int snmp_packet_write(pool *p, int sockfd, struct snmp_packet *pkt);
 
 #endif
