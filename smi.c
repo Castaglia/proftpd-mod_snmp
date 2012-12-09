@@ -210,9 +210,13 @@ struct snmp_var *snmp_smi_create_oid(pool *p, oid_t *name,
   }
 
   var = snmp_smi_alloc_var(p, name, namelen);
+
+  /* The valuelen argument is the number of sub-ids, NOT the number of bytes,
+   * for an OID.
+   */
   var->valuelen = valuelen;
-  var->value.oid = palloc(var->pool, var->valuelen);
-  memmove(var->value.oid, value, var->valuelen);
+  var->value.oid = palloc(var->pool, sizeof(oid_t) * var->valuelen);
+  memmove(var->value.oid, value, sizeof(oid_t) * var->valuelen);
   var->smi_type = smi_type;
 
   pr_trace_msg(trace_channel, 19,
@@ -226,7 +230,7 @@ struct snmp_var *snmp_smi_create_exception(pool *p, oid_t *name,
   struct snmp_var *var;
 
   /* Check that the SMI type is one of the allowed "exceptions"
-   * (terminology from RFC1905).
+   * (terminology from RFC 1905).
    */
   switch (smi_type) {
     case SNMP_SMI_NO_SUCH_OBJECT:
@@ -529,7 +533,7 @@ int snmp_smi_read_vars(pool *p, unsigned char **buf, size_t *buflen,
 
 /* Encode an SNMPv2 variable binding.
  *
- * As per RFC1905 Protocol Operations for SNMPv2:
+ * As per RFC 1905 Protocol Operations for SNMPv2:
  *
  * VarBind ::=
  *   SEQUENCE {
