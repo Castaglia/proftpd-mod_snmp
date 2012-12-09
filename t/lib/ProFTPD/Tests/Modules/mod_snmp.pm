@@ -451,7 +451,7 @@ sub snmp_start_existing_dirs {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -554,7 +554,7 @@ sub snmp_v1_get_unknown {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -711,7 +711,7 @@ sub snmp_v1_get_wrong_community {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -875,7 +875,7 @@ sub snmp_v1_get_daemon_software {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -1042,7 +1042,7 @@ sub snmp_v1_get_daemon_version {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -1209,7 +1209,7 @@ sub snmp_v1_get_daemon_admin {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -1380,7 +1380,7 @@ sub snmp_v1_get_daemon_admin_with_config {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -1547,7 +1547,7 @@ sub snmp_v1_get_daemon_uptime {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -1717,7 +1717,7 @@ sub snmp_v1_get_daemon_vhost_count {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -1885,7 +1885,7 @@ sub snmp_v1_get_daemon_conn_counts {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -2088,7 +2088,7 @@ sub snmp_v1_get_daemon_restart_count {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -2255,7 +2255,7 @@ sub snmp_v1_get_daemon_segfault_count {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -2422,7 +2422,7 @@ sub snmp_v1_get_daemon_maxinsts_count {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -2590,7 +2590,7 @@ sub snmp_v1_get_upload_counts {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -2777,7 +2777,7 @@ sub snmp_v1_get_multi {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -2947,7 +2947,7 @@ sub snmp_v1_get_multi_with_unknown {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -3103,7 +3103,7 @@ sub snmp_v1_get_next {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -3271,7 +3271,7 @@ sub snmp_v1_get_next_unknown {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -3429,7 +3429,7 @@ sub snmp_v1_get_next_missing_instance_id {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -3596,7 +3596,7 @@ sub snmp_v1_get_next_end_of_mib_view {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -3761,7 +3761,7 @@ sub snmp_v1_get_next_multi {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -3931,7 +3931,7 @@ sub snmp_v1_get_next_multi_with_unknown {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -4086,7 +4086,7 @@ sub snmp_v1_set {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -4243,7 +4243,7 @@ sub snmp_v1_trap {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -4400,7 +4400,7 @@ sub snmp_v2_get_unknown {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -4567,7 +4567,7 @@ sub snmp_v2_get_missing_instance_id {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -4734,7 +4734,7 @@ sub snmp_v2_get_next_end_of_mib_view {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -4902,7 +4902,7 @@ sub snmp_v2_get_bulk {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -5076,7 +5076,7 @@ sub snmp_v2_get_bulk_max_repetitions_only {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -5252,7 +5252,7 @@ sub snmp_v2_get_bulk_end_of_mib_view {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -5422,7 +5422,7 @@ sub snmp_v2_set_no_access {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -5579,7 +5579,7 @@ sub snmp_config_limit {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
@@ -5750,7 +5750,7 @@ sub snmp_config_max_variables {
       },
 
       'mod_snmp.c' => {
-        SNMPAgent => "master 127.0.0.1 $agent_port",
+        SNMPAgent => "master 127.0.0.1:$agent_port",
         SNMPCommunity => $snmp_community,
         SNMPEngine => 'on',
         SNMPLog => $log_file,
