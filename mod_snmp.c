@@ -480,6 +480,47 @@ static int snmp_mkpath(pool *p, const char *path, uid_t uid, gid_t gid,
   return 0;
 }
 
+static int snmp_openlog(void) {
+  int res = 0;
+  config_rec *c;
+
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPLog", FALSE);
+  if (c) {
+    snmp_logname = c->argv[0];
+
+    if (strncasecmp(snmp_logname, "none", 5) != 0) {
+      int xerrno;
+
+      pr_signals_block();
+      PRIVS_ROOT
+      res = pr_log_openfile(snmp_logname, &snmp_logfd, 0600);
+      xerrno = errno;
+      PRIVS_RELINQUISH
+      pr_signals_unblock();
+
+      if (res < 0) {
+        if (res == -1) {
+          pr_log_pri(PR_LOG_NOTICE, MOD_SNMP_VERSION
+            ": notice: unable to open SNMPLog '%s': %s", snmp_logname,
+            strerror(xerrno));
+
+        } else if (res == PR_LOG_WRITABLE_DIR) {
+          pr_log_pri(PR_LOG_NOTICE, MOD_SNMP_VERSION
+            ": notice: unable to open SNMPLog '%s': parent directory is "
+            "world-writable", snmp_logname);
+
+        } else if (res == PR_LOG_SYMLINK) {
+          pr_log_pri(PR_LOG_NOTICE, MOD_SNMP_VERSION
+            ": notice: unable to open SNMPLog '%s': cannot log to a symlink",
+            snmp_logname);
+        }
+      }
+    }
+  }
+
+  return res;
+}
+
 /* We don't want to do the full daemonize() as provided in main.c; we
  * already forked.
  */
@@ -3099,39 +3140,7 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  c = find_config(main_server->conf, CONF_PARAM, "SNMPLog", FALSE);
-  if (c) {
-    snmp_logname = c->argv[0];
-
-    if (strncasecmp(snmp_logname, "none", 5) != 0) {
-      int xerrno;
-
-      pr_signals_block();
-      PRIVS_ROOT
-      res = pr_log_openfile(snmp_logname, &snmp_logfd, 0600);
-      xerrno = errno;
-      PRIVS_RELINQUISH
-      pr_signals_unblock();
-
-      if (res < 0) {
-        if (res == -1) {
-          pr_log_pri(PR_LOG_NOTICE, MOD_SNMP_VERSION
-            ": notice: unable to open SNMPLog '%s': %s", snmp_logname,
-            strerror(xerrno));
-
-        } else if (res == PR_LOG_WRITABLE_DIR) {
-          pr_log_pri(PR_LOG_NOTICE, MOD_SNMP_VERSION
-            ": notice: unable to open SNMPLog '%s': parent directory is "
-            "world-writable", snmp_logname);
-
-        } else if (res == PR_LOG_SYMLINK) {
-          pr_log_pri(PR_LOG_NOTICE, MOD_SNMP_VERSION
-            ": notice: unable to open SNMPLog '%s': cannot log to a symlink",
-            snmp_logname);
-        }
-      }
-    }
-  }
+  snmp_openlog();
 
   c = find_config(main_server->conf, CONF_PARAM, "SNMPCommunity", FALSE);
   if (c == NULL) {
@@ -3246,6 +3255,11 @@ static void snmp_restart_ev(const void *event_data, void *user_data) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error resetting SNMP database counters: %s", strerror(errno));
   }
+
+  /* Bounce the SNMPLog file descriptor. */
+  (void) close(snmp_logfd);
+  snmp_logfd = -1;
+  snmp_openlog();
 }
 
 static void snmp_shutdown_ev(const void *event_data, void *user_data) {
