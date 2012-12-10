@@ -252,12 +252,6 @@ static struct snmp_field_info snmp_fields[] = {
   { SNMP_DB_SSH_AUTH_F_PUBLICKEY_ERR_TOTAL, SNMP_DB_ID_SSH, 36,
     sizeof(uint32_t), "SSH_AUTH_F_PUBLICKEY_ERR_TOTAL" },
 
-  /* ssh.sshLogins fields */
-  { SNMP_DB_SSH_LOGINS_F_LOGIN_TOTAL, SNMP_DB_ID_SSH, 40,
-    sizeof(uint32_t), "SSH_LOGINS_F_LOGIN_TOTAL" },
-  { SNMP_DB_SSH_LOGINS_F_LOGIN_ERR_TOTAL, SNMP_DB_ID_SSH, 44,
-    sizeof(uint32_t), "SSH_LOGINS_F_LOGIN_ERR_TOTAL" },
-
   /* sftp.sftpSessions fields */
   { SNMP_DB_SFTP_SESS_F_SESS_COUNT, SNMP_DB_ID_SFTP, 0,
     sizeof(uint32_t), "SFTP_SESS_F_SESS_COUNT" },
@@ -369,11 +363,10 @@ static struct snmp_db_info snmp_dbs[] = {
    *
    *  2 session fields        x 4 bytes =  8 bytes
    *  8 auth fields           x 4 bytes = 32 bytes
-   *  2 login fields          x 4 bytes =  8 bytes
    *
-   * for a total of 48 bytes.
+   * for a total of 40 bytes.
    */
-  { SNMP_DB_ID_SSH, -1, "ssh.dat", NULL, NULL, 48 },
+  { SNMP_DB_ID_SSH, -1, "ssh.dat", NULL, NULL, 40 },
 
   /* The size of the sftp table is calculated as:
    *

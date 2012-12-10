@@ -608,21 +608,6 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ssh.sshSessions.compressTotal.0",
     SNMP_SMI_COUNTER32 },
 
-  /* ssh.sshLogins MIBs */
-  { { SNMP_MIB_SSH_LOGINS_OID_TOTAL, 0 },
-    SNMP_MIB_SSH_LOGINS_OIDLEN_TOTAL + 1,
-    SNMP_DB_SSH_LOGINS_F_LOGIN_TOTAL, FALSE,
-    SNMP_MIB_NAME_PREFIX "ssh.sshLogins.loginTotal",
-    SNMP_MIB_NAME_PREFIX "ssh.sshLogins.loginTotal.0",
-    SNMP_SMI_COUNTER32 },
-
-  { { SNMP_MIB_SSH_LOGINS_OID_ERR_TOTAL, 0 },
-    SNMP_MIB_SSH_LOGINS_OIDLEN_ERR_TOTAL + 1,
-    SNMP_DB_SSH_LOGINS_F_LOGIN_ERR_TOTAL, FALSE,
-    SNMP_MIB_NAME_PREFIX "ssh.sshLogins.loginFailureTotal",
-    SNMP_MIB_NAME_PREFIX "ssh.sshLogins.loginFailureTotal.0",
-    SNMP_SMI_COUNTER32 },
-
   /* sftp.sftpSessions MIBs */
   { { SNMP_MIB_SFTP_SESS_OID_COUNT, 0 },
     SNMP_MIB_SFTP_SESS_OIDLEN_COUNT + 1,
