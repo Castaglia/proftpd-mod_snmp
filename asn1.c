@@ -1247,10 +1247,6 @@ int snmp_asn1_write_exception(pool *p, unsigned char **buf, size_t *buflen,
 
   /* XXX Check that asn1_type is EXCEPTION, as expected? */
 
-  /* XXX Note: Squid's build_exception currently hardcodes the exception
-   * identifier to noSuchObject(0).
-   */
-
   res = snmp_asn1_write_header(p, buf, buflen, asn1_type, asn1_ex, flags);
   if (res < 0) {
     return -1;
