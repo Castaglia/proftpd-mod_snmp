@@ -154,8 +154,8 @@ extern int snmp_table_ids[];
 #define SNMP_DB_SSH_AUTH_F_PUBLICKEY_ERR_TOTAL			461
 
 /* ssh.sshLogins database fields */
-#define SNMP_DB_SSH_LOGIN_F_LOGIN_TOTAL				490
-#define SNMP_DB_SSH_LOGIN_F_LOGIN_ERR_TOTAL			491
+#define SNMP_DB_SSH_LOGINS_F_LOGIN_TOTAL			490
+#define SNMP_DB_SSH_LOGINS_F_LOGIN_ERR_TOTAL			491
 
 /* sftp.sftpSessions database fields */
 #define SNMP_DB_SFTP_SESS_F_SESS_COUNT				500
