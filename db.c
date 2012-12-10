@@ -263,10 +263,10 @@ static struct snmp_field_info snmp_fields[] = {
     sizeof(uint32_t), "SSH_AUTH_F_PUBLICKEY_ERR_TOTAL" },
 
   /* ssh.sshLogins fields */
-  { SNMP_DB_SSH_LOGIN_F_LOGIN_TOTAL, SNMP_DB_ID_SSH, 60,
-    sizeof(uint32_t), "SSH_LOGIN_F_LOGIN_TOTAL" },
-  { SNMP_DB_SSH_LOGIN_F_LOGIN_ERR_TOTAL, SNMP_DB_ID_SSH, 64,
-    sizeof(uint32_t), "SSH_LOGIN_F_LOGIN_ERR_TOTAL" },
+  { SNMP_DB_SSH_LOGINS_F_LOGIN_TOTAL, SNMP_DB_ID_SSH, 60,
+    sizeof(uint32_t), "SSH_LOGINS_F_LOGIN_TOTAL" },
+  { SNMP_DB_SSH_LOGINS_F_LOGIN_ERR_TOTAL, SNMP_DB_ID_SSH, 64,
+    sizeof(uint32_t), "SSH_LOGINS_F_LOGIN_ERR_TOTAL" },
 
   /* sftp.sftpSessions fields */
   { SNMP_DB_SFTP_SESS_F_SESS_COUNT, SNMP_DB_ID_SFTP, 0,
