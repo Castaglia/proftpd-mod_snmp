@@ -601,13 +601,6 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ssh.sshSessions.keyExchangeFailureTotal.0",
     SNMP_SMI_COUNTER32 },
 
-  { { SNMP_MIB_SSH_SESS_OID_COMPRESS_COUNT, 0 },
-    SNMP_MIB_SSH_SESS_OIDLEN_COMPRESS_COUNT + 1,
-    SNMP_DB_SSH_SESS_F_COMPRESS_COUNT, FALSE,
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.compressionCount",
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.compressionCount.0",
-    SNMP_SMI_GAUGE32 },
-
   { { SNMP_MIB_SSH_SESS_OID_COMPRESS_TOTAL, 0 },
     SNMP_MIB_SSH_SESS_OIDLEN_COMPRESS_TOTAL + 1,
     SNMP_DB_SSH_SESS_F_COMPRESS_TOTAL, FALSE,

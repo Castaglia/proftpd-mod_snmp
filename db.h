@@ -136,8 +136,7 @@ extern int snmp_table_ids[];
 
 /* ssh.sshSessions database fields */
 #define SNMP_DB_SSH_SESS_F_KEX_ERR_TOTAL			400
-#define SNMP_DB_SSH_SESS_F_COMPRESS_COUNT			401
-#define SNMP_DB_SSH_SESS_F_COMPRESS_TOTAL			402
+#define SNMP_DB_SSH_SESS_F_COMPRESS_TOTAL			401
 
 /* ssh.sshSessions.sshAuth database fields */
 #define SNMP_DB_SSH_AUTH_F_HOSTBASED_TOTAL			450
