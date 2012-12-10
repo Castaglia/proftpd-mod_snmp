@@ -1005,7 +1005,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of KB uploaded via SCP "
-        ::= { scDataTransfers 10 }
+        ::= { scpDataTransfers 7 }
 
         kbDownloadTotal OBJECT-TYPE
             SYNTAX Counter32
@@ -1013,7 +1013,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of KB downloaded via SCP "
-        ::= { scDataTransfers 11 }
+        ::= { scpDataTransfers 8 }
 
 -- end of PROFTPD-MIB
 --
