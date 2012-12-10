@@ -3454,11 +3454,12 @@ static void snmp_ssh2_auth_hostbased_ev(const void *event_data,
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_AUTH_F_HOSTBASED_TOTAL, 1);
+  res = snmp_db_incr_value(session.pool,
+    SNMP_DB_SSH_LOGINS_F_HOSTBASED_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
-      "ssh.sshSessions.sshAuth.hostbasedAuthTotal: %s", strerror(errno));
+      "ssh.sshLogins.hostbasedAuthTotal: %s", strerror(errno));
   }
 }
 
@@ -3471,11 +3472,11 @@ static void snmp_ssh2_auth_hostbased_err_ev(const void *event_data,
   }
 
   res = snmp_db_incr_value(session.pool,
-    SNMP_DB_SSH_AUTH_F_HOSTBASED_ERR_TOTAL, 1);
+    SNMP_DB_SSH_LOGINS_F_HOSTBASED_ERR_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
-      "ssh.sshSessions.sshAuth.hostbasedAuthFailureTotal: %s", strerror(errno));
+      "ssh.sshLogins.hostbasedAuthFailureTotal: %s", strerror(errno));
   }
 }
 
@@ -3487,11 +3488,11 @@ static void snmp_ssh2_auth_kbdint_ev(const void *event_data,
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_AUTH_F_KBDINT_TOTAL, 1);
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_LOGINS_F_KBDINT_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
-      "ssh.sshSessions.sshAuth.keyboardInteractiveAuthTotal: %s",
+      "ssh.sshLogins.keyboardInteractiveAuthTotal: %s",
       strerror(errno));
   }
 }
@@ -3505,11 +3506,11 @@ static void snmp_ssh2_auth_kbdint_err_ev(const void *event_data,
   }
 
   res = snmp_db_incr_value(session.pool,
-    SNMP_DB_SSH_AUTH_F_KBDINT_ERR_TOTAL, 1);
+    SNMP_DB_SSH_LOGINS_F_KBDINT_ERR_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
-      "ssh.sshSessions.sshAuth.keyboardInteractiveAuthFailureTotal: %s",
+      "ssh.sshLogins.keyboardInteractiveAuthFailureTotal: %s",
       strerror(errno));
   }
 }
@@ -3522,11 +3523,11 @@ static void snmp_ssh2_auth_passwd_ev(const void *event_data,
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_AUTH_F_PASSWD_TOTAL, 1);
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_LOGINS_F_PASSWD_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
-      "ssh.sshSessions.sshAuth.passwordAuthTotal: %s", strerror(errno));
+      "ssh.sshLogins.passwordAuthTotal: %s", strerror(errno));
   }
 }
 
@@ -3539,11 +3540,11 @@ static void snmp_ssh2_auth_passwd_err_ev(const void *event_data,
   }
 
   res = snmp_db_incr_value(session.pool,
-    SNMP_DB_SSH_AUTH_F_PASSWD_ERR_TOTAL, 1);
+    SNMP_DB_SSH_LOGINS_F_PASSWD_ERR_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
-      "ssh.sshSessions.sshAuth.passwordAuthFailureTotal: %s", strerror(errno));
+      "ssh.sshLogins.passwordAuthFailureTotal: %s", strerror(errno));
   }
 }
 
@@ -3555,11 +3556,12 @@ static void snmp_ssh2_auth_publickey_ev(const void *event_data,
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_AUTH_F_PUBLICKEY_TOTAL, 1);
+  res = snmp_db_incr_value(session.pool,
+    SNMP_DB_SSH_LOGINS_F_PUBLICKEY_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
-      "ssh.sshSessions.sshAuth.publickeyAuthTotal: %s", strerror(errno));
+      "ssh.sshLogins.publickeyAuthTotal: %s", strerror(errno));
   }
 }
 
@@ -3572,11 +3574,11 @@ static void snmp_ssh2_auth_publickey_err_ev(const void *event_data,
   }
 
   res = snmp_db_incr_value(session.pool,
-    SNMP_DB_SSH_AUTH_F_PUBLICKEY_ERR_TOTAL, 1);
+    SNMP_DB_SSH_LOGINS_F_PUBLICKEY_ERR_TOTAL, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error incrementing SNMP database for "
-      "ssh.sshSessions.sshAuth.publickeyAuthFailureTotal: %s", strerror(errno));
+      "ssh.sshLogins.publickeyAuthFailureTotal: %s", strerror(errno));
   }
 }
 

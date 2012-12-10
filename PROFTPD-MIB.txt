@@ -53,7 +53,7 @@ snmpModule MODULE-IDENTITY
 
         ssh                      OBJECT IDENTIFIER ::= { snmpModule 5 }
         sshSessions              OBJECT IDENTIFIER ::= { ssh 1 }
-        sshAuth                  OBJECT IDENTIFIER ::= { sshSessions 1 }
+        sshLogins                OBJECT IDENTIFIER ::= { ssh 2 }
 
         sftp                     OBJECT IDENTIFIER ::= { snmpModule 6 }
         sftpSessions             OBJECT IDENTIFIER ::= { sftp 1 }
