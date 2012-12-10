@@ -774,6 +774,38 @@ snmpModule MODULE-IDENTITY
                 " Total number of SFTP sessions "
         ::= { sftpSessions 2 }
 
+        protocolVersion3Total OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of sessions using SFTP version 3 "
+        ::= { sftpSessions 3 }
+
+        protocolVersion4Total OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of sessions using SFTP version 4 "
+        ::= { sftpSessions 4 }
+
+        protocolVersion5Total OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of sessions using SFTP version 5 "
+        ::= { sftpSessions 5 }
+
+        protocolVersion6Total OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of sessions using SFTP version 6 "
+        ::= { sftpSessions 6 }
+
 --
 -- sftp.sftpDataTransfers arc
 --

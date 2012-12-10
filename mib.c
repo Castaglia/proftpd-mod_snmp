@@ -623,6 +623,34 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "sftp.sftpSessions.sessionTotal.0",
     SNMP_SMI_COUNTER32 },
 
+  { { SNMP_MIB_SFTP_SESS_OID_V3_TOTAL, 0 },
+    SNMP_MIB_SFTP_SESS_OIDLEN_V3_TOTAL + 1,
+    SNMP_DB_SFTP_SESS_F_SFTP_V3_TOTAL, FALSE,
+    SNMP_MIB_NAME_PREFIX "sftp.sftpSessions.protocolVersion3Total",
+    SNMP_MIB_NAME_PREFIX "sftp.sftpSessions.protocolVersion3Total.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_SFTP_SESS_OID_V4_TOTAL, 0 },
+    SNMP_MIB_SFTP_SESS_OIDLEN_V4_TOTAL + 1,
+    SNMP_DB_SFTP_SESS_F_SFTP_V4_TOTAL, FALSE,
+    SNMP_MIB_NAME_PREFIX "sftp.sftpSessions.protocolVersion4Total",
+    SNMP_MIB_NAME_PREFIX "sftp.sftpSessions.protocolVersion4Total.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_SFTP_SESS_OID_V5_TOTAL, 0 },
+    SNMP_MIB_SFTP_SESS_OIDLEN_V5_TOTAL + 1,
+    SNMP_DB_SFTP_SESS_F_SFTP_V5_TOTAL, FALSE,
+    SNMP_MIB_NAME_PREFIX "sftp.sftpSessions.protocolVersion5Total",
+    SNMP_MIB_NAME_PREFIX "sftp.sftpSessions.protocolVersion5Total.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_SFTP_SESS_OID_V6_TOTAL, 0 },
+    SNMP_MIB_SFTP_SESS_OIDLEN_V6_TOTAL + 1,
+    SNMP_DB_SFTP_SESS_F_SFTP_V6_TOTAL, FALSE,
+    SNMP_MIB_NAME_PREFIX "sftp.sftpSessions.protocolVersion6Total",
+    SNMP_MIB_NAME_PREFIX "sftp.sftpSessions.protocolVersion6Total.0",
+    SNMP_SMI_COUNTER32 },
+
   /* sftp.sftpDataTransfers MIBs */
   { { SNMP_MIB_SFTP_XFERS_OID_DIR_LIST_COUNT, 0 },
     SNMP_MIB_SFTP_XFERS_OIDLEN_DIR_LIST_COUNT + 1,

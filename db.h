@@ -151,6 +151,10 @@ extern int snmp_table_ids[];
 /* sftp.sftpSessions database fields */
 #define SNMP_DB_SFTP_SESS_F_SESS_COUNT				500
 #define SNMP_DB_SFTP_SESS_F_SESS_TOTAL				501
+#define SNMP_DB_SFTP_SESS_F_SFTP_V3_TOTAL			502
+#define SNMP_DB_SFTP_SESS_F_SFTP_V4_TOTAL			503
+#define SNMP_DB_SFTP_SESS_F_SFTP_V5_TOTAL			504
+#define SNMP_DB_SFTP_SESS_F_SFTP_V6_TOTAL			505
 
 /* sftp.sftpDataTransfers database fields */
 #define SNMP_DB_SFTP_XFERS_F_DIR_LIST_COUNT			530
