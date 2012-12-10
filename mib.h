@@ -643,6 +643,7 @@ struct snmp_mib {
   oid_t mib_oid[SNMP_MIB_MAX_OIDLEN];
   unsigned int mib_oidlen;
   unsigned int db_field;
+  int mib_enabled;
   const char *mib_name;
   const char *instance_name;
   unsigned char smi_type;
@@ -664,5 +665,8 @@ int snmp_mib_get_max_idx(void);
 
 /* Resets the counter values in the database, as per RFC recommendation. */
 int snmp_mib_reset_counters(void);
+
+/* Initialize the MIB. */
+int snmp_mib_init(void);
 
 #endif

@@ -3192,6 +3192,9 @@ static int snmp_sess_init(void) {
   pr_event_register(&snmp_module, "mod_tls.data-handshake-failed",
     snmp_tls_data_handshake_err_ev, NULL);
 
+  /* Initial the MIBs. */
+  snmp_mib_init();
+
   res = snmp_db_incr_value(session.pool, SNMP_DB_DAEMON_F_CONN_COUNT, 1);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
