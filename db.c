@@ -416,25 +416,6 @@ static struct snmp_db_info snmp_dbs[] = {
   { -1, -1, NULL, NULL, 0 },
 };
 
-/* For a given field ID, return the database ID. */
-static int get_field_db_id(unsigned int field) {
-  register unsigned int i;
-  int db_id = -1;
-
-  for (i = 0; snmp_fields[i].db_id > 0; i++) {
-    if (snmp_fields[i].field == field) {
-      db_id = snmp_fields[i].db_id;
-      break;
-    }
-  }
-
-  if (db_id < 0) {
-    errno = ENOENT;
-  }
-
-  return db_id;
-}
-
 /* For the given field, provision the corresponding lock start and len
  * values, for the byte-range locking.
  */
@@ -495,6 +476,24 @@ static const char *get_lock_type(struct flock *lock) {
   return lock_type;
 }
 
+int snmp_db_get_field_db_id(unsigned int field) {
+  register unsigned int i;
+  int db_id = -1;
+
+  for (i = 0; snmp_fields[i].db_id > 0; i++) {
+    if (snmp_fields[i].field == field) {
+      db_id = snmp_fields[i].db_id;
+      break;
+    }
+  }
+
+  if (db_id < 0) {
+    errno = ENOENT;
+  }
+
+  return db_id;
+}
+
 const char *snmp_db_get_fieldstr(pool *p, unsigned int field) {
   register unsigned int i;
   char fieldstr[256];
@@ -530,7 +529,7 @@ int snmp_db_rlock(unsigned int field) {
   lock.l_type = F_RDLCK;
   lock.l_whence = SEEK_SET;
 
-  db_id = get_field_db_id(field);
+  db_id = snmp_db_get_field_db_id(field);
   if (db_id < 0) {
     return -1;
   }
@@ -612,7 +611,7 @@ int snmp_db_wlock(unsigned int field) {
   lock.l_type = F_WRLCK;
   lock.l_whence = SEEK_SET;
 
-  db_id = get_field_db_id(field);
+  db_id = snmp_db_get_field_db_id(field);
   if (db_id < 0) {
     return -1;
   }
@@ -694,7 +693,7 @@ int snmp_db_unlock(unsigned int field) {
   lock.l_type = F_UNLCK;
   lock.l_whence = SEEK_SET;
 
-  db_id = get_field_db_id(field);
+  db_id = snmp_db_get_field_db_id(field);
   if (db_id < 0) {
     return -1;
   }
@@ -1109,7 +1108,7 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
       break;
   }
 
-  db_id = get_field_db_id(field);
+  db_id = snmp_db_get_field_db_id(field);
   if (db_id < 0) {
     return -1;
   }
@@ -1145,7 +1144,7 @@ int snmp_db_incr_value(pool *p, unsigned int field, int32_t incr) {
   off_t field_start;
   size_t field_len;
 
-  db_id = get_field_db_id(field);
+  db_id = snmp_db_get_field_db_id(field);
   if (db_id < 0) {
     return -1;
   }
@@ -1210,7 +1209,7 @@ int snmp_db_reset_value(pool *p, unsigned int field) {
   off_t field_start;
   size_t field_len;
 
-  db_id = get_field_db_id(field);
+  db_id = snmp_db_get_field_db_id(field);
   if (db_id < 0) {
     return -1;
   }

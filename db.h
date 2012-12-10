@@ -196,6 +196,9 @@ extern int snmp_table_ids[];
 
 /* XXX geoip database fields */
 
+/* For a given field ID, return the database ID. */
+int snmp_db_get_field_db_id(unsigned int field);
+
 const char *snmp_db_get_fieldstr(pool *p, unsigned int field);
 
 int snmp_db_rlock(unsigned int field);
