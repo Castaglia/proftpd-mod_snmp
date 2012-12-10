@@ -537,13 +537,6 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_SMI_COUNTER32 },
 
   /* ssh.sshSessions.sshAuth MIBs */
-  { { SNMP_MIB_SSH_AUTH_OID_HOSTBASED_COUNT, 0 },
-    SNMP_MIB_SSH_AUTH_OIDLEN_HOSTBASED_COUNT + 1,
-    SNMP_DB_SSH_AUTH_F_HOSTBASED_COUNT, FALSE,
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.hostbasedAuthCount",
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.hostbasedAuthCount.0",
-    SNMP_SMI_GAUGE32 },
-
   { { SNMP_MIB_SSH_AUTH_OID_HOSTBASED_TOTAL, 0 },
     SNMP_MIB_SSH_AUTH_OIDLEN_HOSTBASED_TOTAL + 1,
     SNMP_DB_SSH_AUTH_F_HOSTBASED_TOTAL, FALSE,
@@ -557,13 +550,6 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.hostbasedAuthFailureTotal",
     SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.hostbasedAuthFailureTotal.0",
     SNMP_SMI_COUNTER32 },
-
-  { { SNMP_MIB_SSH_AUTH_OID_KBDINT_COUNT, 0 },
-    SNMP_MIB_SSH_AUTH_OIDLEN_KBDINT_COUNT + 1,
-    SNMP_DB_SSH_AUTH_F_KBDINT_COUNT, FALSE,
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.keyboardInteractiveAuthCount",
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.keyboardInteractiveAuthCount.0",
-    SNMP_SMI_GAUGE32 },
 
   { { SNMP_MIB_SSH_AUTH_OID_KBDINT_TOTAL, 0 },
     SNMP_MIB_SSH_AUTH_OIDLEN_KBDINT_TOTAL + 1,
@@ -579,13 +565,6 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.keyboardInteractiveAuthFailureTotal.0",
     SNMP_SMI_COUNTER32 },
 
-  { { SNMP_MIB_SSH_AUTH_OID_PASSWD_COUNT, 0 },
-    SNMP_MIB_SSH_AUTH_OIDLEN_PASSWD_COUNT + 1,
-    SNMP_DB_SSH_AUTH_F_PASSWD_COUNT, FALSE,
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.passwordAuthCount",
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.passwordAuthCount.0",
-    SNMP_SMI_GAUGE32 },
-
   { { SNMP_MIB_SSH_AUTH_OID_PASSWD_TOTAL, 0 },
     SNMP_MIB_SSH_AUTH_OIDLEN_PASSWD_TOTAL + 1,
     SNMP_DB_SSH_AUTH_F_PASSWD_TOTAL, FALSE,
@@ -599,13 +578,6 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.passwordAuthFailureTotal",
     SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.passwordAuthFailureTotal.0",
     SNMP_SMI_COUNTER32 },
-
-  { { SNMP_MIB_SSH_AUTH_OID_PUBLICKEY_COUNT, 0 },
-    SNMP_MIB_SSH_AUTH_OIDLEN_PUBLICKEY_COUNT + 1,
-    SNMP_DB_SSH_AUTH_F_PUBLICKEY_COUNT, FALSE,
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.publickeyAuthCount",
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.sshAuth.publickeyAuthCount.0",
-    SNMP_SMI_GAUGE32 },
 
   { { SNMP_MIB_SSH_AUTH_OID_PUBLICKEY_TOTAL, 0 },
     SNMP_MIB_SSH_AUTH_OIDLEN_PUBLICKEY_TOTAL + 1,
