@@ -1972,7 +1972,13 @@ MODRET snmp_pre_list(cmd_rec *cmd) {
     }
 
   } else {
-    /* XXX sftp dir list */
+    res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_SFTP_XFERS_F_DIR_LIST_COUNT,
+      1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "sftp.sftpDataTransfers.dirListCount: %s", strerror(errno));
+    }
   }
 
   return PR_DECLINED(cmd);
@@ -2022,7 +2028,21 @@ MODRET snmp_log_list(cmd_rec *cmd) {
     }
 
   } else {
-    /* XXX sftp dir list */
+    res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_SFTP_XFERS_F_DIR_LIST_COUNT,
+      -1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for "
+        "sftp.sftpDataTransfers.dirListCount: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_SFTP_XFERS_F_DIR_LIST_TOTAL,
+      1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "sftp.sftpDataTransfers.dirListTotal: %s", strerror(errno));
+    }
   }
 
   return PR_DECLINED(cmd);
@@ -2073,7 +2093,21 @@ MODRET snmp_err_list(cmd_rec *cmd) {
     }
 
   } else {
-    /* XXX sftp dir list */
+    res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_SFTP_XFERS_F_DIR_LIST_COUNT,
+      -1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for "
+        "sftp.sftpDataTransfers.dirListCount: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_DIR_LIST_ERR_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "sftp.sftpDataTranfers.dirListFailedTotal: %s", strerror(errno));
+    }
   }
 
   return PR_DECLINED(cmd);
@@ -2138,7 +2172,7 @@ MODRET snmp_log_pass(cmd_rec *cmd) {
     }
 
   } else {
-    /* XXX sftp password login */
+    /* SSH2 password logins are handled elsewhere. */
   }
 
   return PR_DECLINED(cmd);
@@ -2171,7 +2205,7 @@ MODRET snmp_err_pass(cmd_rec *cmd) {
     }
 
   } else {
-    /* XXX sftp password login */
+    /* SSH2 password logins are handled elsewhere. */
   }
 
   return PR_DECLINED(cmd);
@@ -2204,8 +2238,23 @@ MODRET snmp_pre_retr(cmd_rec *cmd) {
         "ftps.tlsDataTransfers.fileDownloadCount: %s", strerror(errno));
     }
 
-  } else {
-    /* XXX sftp/scp file download */
+  } else if (strncmp(proto, "sftp", 5) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_FILE_DOWNLOAD_COUNT, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "sftp.sftpDataTransfers.fileDownloadCount: %s", strerror(errno));
+    }
+
+  } else if (strncmp(proto, "scp", 4) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_FILE_DOWNLOAD_COUNT, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "scp.scpDataTransfers.fileDownloadCount: %s", strerror(errno));
+    }
   }
 
   return PR_DECLINED(cmd);
@@ -2311,8 +2360,93 @@ MODRET snmp_log_retr(cmd_rec *cmd) {
 
     snmp_retr_bytes = rem_bytes;
 
-  } else {
-    /* XXX sftp/scp download */
+  } else if (strncmp(proto, "sftp", 5) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_FILE_DOWNLOAD_COUNT, -1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for "
+        "sftp.sftpDataTransfers.fileDownloadCount: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_FILE_DOWNLOAD_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "sftp.sftpDataTransfers.fileDownloadTotal: %s", strerror(errno));
+    }
+
+    /* We also need to increment the KB download count.  We know the number
+     * of bytes downloaded as an off_t here, but we only store the number of KB
+     * in the mod_snmp db tables.
+     * 
+     * We could just increment by xfer_bytes / 1024, but that would mean that
+     * several small files of say 999 bytes could be downloaded, and the KB
+     * count would not be incremented.
+     *
+     * To deal with this situation, we use the snmp_retr_bytes static variable
+     * as a "holding bucket" of bytes, from which we get the KB to add to the
+     * db tables.
+     */
+    snmp_retr_bytes += session.xfer.total_bytes;
+
+    retr_kb = (snmp_retr_bytes / 1024);
+    rem_bytes = (snmp_retr_bytes % 1024);
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_KB_DOWNLOAD_TOTAL, retr_kb);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "sftp.sftpDataTransfers.kbDownloadTotal: %s", strerror(errno));
+    }
+
+    snmp_retr_bytes = rem_bytes;
+
+  } else if (strncmp(proto, "scp", 4) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_FILE_DOWNLOAD_COUNT, -1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for "
+        "scp.scpDataTransfers.fileDownloadCount: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_FILE_DOWNLOAD_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "scp.scpDataTransfers.fileDownloadTotal: %s", strerror(errno));
+    }
+
+    /* We also need to increment the KB download count.  We know the number
+     * of bytes downloaded as an off_t here, but we only store the number of KB
+     * in the mod_snmp db tables.
+     * 
+     * We could just increment by xfer_bytes / 1024, but that would mean that
+     * several small files of say 999 bytes could be downloaded, and the KB
+     * count would not be incremented.
+     *
+     * To deal with this situation, we use the snmp_retr_bytes static variable
+     * as a "holding bucket" of bytes, from which we get the KB to add to the
+     * db tables.
+     */
+    snmp_retr_bytes += session.xfer.total_bytes;
+
+    retr_kb = (snmp_retr_bytes / 1024);
+    rem_bytes = (snmp_retr_bytes % 1024);
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_KB_DOWNLOAD_TOTAL, retr_kb);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "scp.scpDataTransfers.kbDownloadTotal: %s", strerror(errno));
+    }
+
+    snmp_retr_bytes = rem_bytes;
   }
 
   return PR_DECLINED(cmd);
@@ -2362,8 +2496,39 @@ MODRET snmp_err_retr(cmd_rec *cmd) {
         "ftps.tlsDataTransfers.fileDownloadFailedTotal: %s", strerror(errno));
     }
 
-  } else {
-    /* XXX sftp/scp file download */
+  } else if (strncmp(proto, "sftp", 5) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_FILE_DOWNLOAD_COUNT, -1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for "
+        "sftp.sftpDataTransfers.fileDownloadCount: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "sftp.sftpDataTransfers.fileDownloadFailedTotal: %s", strerror(errno));
+    }
+
+  } else if (strncmp(proto, "scp", 4) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_FILE_DOWNLOAD_COUNT, -1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for "
+        "scp.scpDataTransfers.fileDownloadCount: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "scp.scpDataTransfers.fileDownloadFailedTotal: %s", strerror(errno));
+    }
   }
 
   return PR_DECLINED(cmd);
@@ -2396,8 +2561,23 @@ MODRET snmp_pre_stor(cmd_rec *cmd) {
         "ftps.tlsDataTransfers.fileUploadCount: %s", strerror(errno));
     }
 
-  } else {
-    /* XXX sftp/scp file upload */
+  } else if (strncmp(proto, "sftp", 5) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_FILE_UPLOAD_COUNT, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "sftp.sftpDataTransfers.fileUploadCount: %s", strerror(errno));
+    }
+
+  } else if (strncmp(proto, "scp", 4) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_FILE_UPLOAD_COUNT, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "scp.scpDataTransfers.fileUploadCount: %s", strerror(errno));
+    }
   }
 
   return PR_DECLINED(cmd);
@@ -2503,8 +2683,93 @@ MODRET snmp_log_stor(cmd_rec *cmd) {
 
     snmp_stor_bytes = rem_bytes;
 
-  } else {
-    /* XXX sftp/scp file upload */
+  } else if (strncmp(proto, "sftp", 5) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_FILE_UPLOAD_COUNT, -1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for "
+        "sftp.sftpDataTransfers.fileUploadCount: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_FILE_UPLOAD_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "sftp.sftpDataTransfers.fileUploadTotal: %s", strerror(errno));
+    }
+
+    /* We also need to increment the KB upload count.  We know the number
+     * of bytes downloaded as an off_t here, but we only store the number of KB
+     * in the mod_snmp db tables.
+     * 
+     * We could just increment by xfer_bytes / 1024, but that would mean that
+     * several small files of say 999 bytes could be uploaded, and the KB
+     * count would not be incremented.
+     *
+     * To deal with this situation, we use the snmp_stor_bytes static variable
+     * as a "holding bucket" of bytes, from which we get the KB to add to the
+     * db tables.
+     */
+    snmp_stor_bytes += session.xfer.total_bytes;
+
+    stor_kb = (snmp_stor_bytes / 1024);
+    rem_bytes = (snmp_stor_bytes % 1024);
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_KB_UPLOAD_TOTAL, stor_kb);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "sftp.sftpDataTransfers.kbUploadTotal: %s", strerror(errno));
+    }
+
+    snmp_stor_bytes = rem_bytes;
+
+  } else if (strncmp(proto, "scp", 4) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_FILE_UPLOAD_COUNT, -1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for "
+        "scp.scpDataTransfers.fileUploadCount: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_FILE_UPLOAD_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "scp.scpDataTransfers.fileUploadTotal: %s", strerror(errno));
+    }
+
+    /* We also need to increment the KB upload count.  We know the number
+     * of bytes downloaded as an off_t here, but we only store the number of KB
+     * in the mod_snmp db tables.
+     * 
+     * We could just increment by xfer_bytes / 1024, but that would mean that
+     * several small files of say 999 bytes could be uploaded, and the KB
+     * count would not be incremented.
+     *
+     * To deal with this situation, we use the snmp_stor_bytes static variable
+     * as a "holding bucket" of bytes, from which we get the KB to add to the
+     * db tables.
+     */
+    snmp_stor_bytes += session.xfer.total_bytes;
+
+    stor_kb = (snmp_stor_bytes / 1024);
+    rem_bytes = (snmp_stor_bytes % 1024);
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_KB_UPLOAD_TOTAL, stor_kb);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "scp.scpDataTransfers.kbUploadTotal: %s", strerror(errno));
+    }
+
+    snmp_stor_bytes = rem_bytes;
   }
 
   return PR_DECLINED(cmd);
@@ -2554,8 +2819,39 @@ MODRET snmp_err_stor(cmd_rec *cmd) {
         "ftps.tlsDataTransfers.fileUploadFailedTotal: %s", strerror(errno));
     }
 
-  } else {
-    /* XXX sftp/scp file upload */
+  } else if (strncmp(proto, "sftp", 5) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_FILE_UPLOAD_COUNT, -1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for "
+        "sftp.sftpDataTransfers.fileUploadCount: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SFTP_XFERS_F_FILE_UPLOAD_ERR_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "sftp.sftpDataTransfers.fileUploadFailedTotal: %s", strerror(errno));
+    }
+
+  } else if (strncmp(proto, "scp", 4) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_FILE_UPLOAD_COUNT, -1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error decrementing SNMP database for "
+        "scp.scpDataTransfers.fileUploadCount: %s", strerror(errno));
+    }
+
+    res = snmp_db_incr_value(cmd->tmp_pool,
+      SNMP_DB_SCP_XFERS_F_FILE_UPLOAD_ERR_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "scp.scpDataTransfers.fileUploadFailedTotal: %s", strerror(errno));
+    }
   }
 
   return PR_DECLINED(cmd);
@@ -2792,6 +3088,7 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
   server_rec *s;
   unsigned int nvhosts = 0;
   int res;
+  unsigned char sftp_loaded = FALSE, tls_loaded = FALSE;
 
   c = find_config(main_server->conf, CONF_PARAM, "SNMPEngine", FALSE);
   if (c) {
@@ -2873,12 +3170,44 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
   }
 
   /* Create the variable database table files, based on the configured
-   * SNMPTables path
+   * SNMPTables path.
    */
+  tls_loaded = pr_module_exists("mod_tls.c");
+  sftp_loaded = pr_module_exists("mod_sftp.c");
 
   for (i = 0; snmp_table_ids[i] > 0; i++) {
+    int skip_table = FALSE;
+
+    switch (snmp_table_ids[i]) {
+      case SNMP_DB_ID_TLS:
+        if (tls_loaded == FALSE) {
+          skip_table = TRUE;
+        }
+        break;
+
+      case SNMP_DB_ID_SSH:
+      case SNMP_DB_ID_SFTP:
+      case SNMP_DB_ID_SCP:
+        if (sftp_loaded == FALSE) {
+          skip_table = TRUE;
+        }
+        break;
+
+      default:
+        break;
+    }
+
+    if (skip_table) {
+      continue;
+    }
+
     res = snmp_db_open(snmp_pool, snmp_table_ids[i]);
     if (res < 0) {
+      /* XXX There's a resource leak here.  If we fail to open this table,
+       * BUT have succeeded in opening previous tables, AND then we just
+       * return here, we leave those previously opened tables still open.
+       */
+
       snmp_engine = FALSE;
       return;
     }
@@ -3051,6 +3380,7 @@ static void snmp_timeout_stalled_ev(const void *event_data, void *user_data) {
   }
 }
 
+/* mod_tls-generated events */
 static void snmp_tls_ctrl_handshake_err_ev(const void *event_data,
     void *user_data) {
   int res;
@@ -3085,17 +3415,247 @@ static void snmp_tls_data_handshake_err_ev(const void *event_data,
   }
 }
 
-static void snmp_notify_ev(const void *event_data, void *user_data) {
+/* mod_sftp-generated events */
+static void snmp_ssh2_kex_err_ev(const void *event_data, void *user_data) {
+  int res;
 
   if (snmp_engine == FALSE) {
     return;
   }
 
-  /* Used by modules to somehow communicate to the SNMP daemon process
-   * to send a trap?  Or send the trap directly from the session process?
-   * Probably the latter.
-   */
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_SESS_F_KEX_ERR_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ssh.sshSessions.keyExchangeFailureTotal: %s", strerror(errno));
+  }
+}
 
+static void snmp_ssh2_compress_ev(const void *event_data, void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_SESS_F_COMPRESS_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ssh.sshSessions.compressionTotal: %s", strerror(errno));
+  }
+}
+
+static void snmp_ssh2_auth_hostbased_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_AUTH_F_HOSTBASED_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ssh.sshSessions.sshAuth.hostbasedAuthTotal: %s", strerror(errno));
+  }
+}
+
+static void snmp_ssh2_auth_hostbased_err_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool,
+    SNMP_DB_SSH_AUTH_F_HOSTBASED_ERR_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ssh.sshSessions.sshAuth.hostbasedAuthFailureTotal: %s", strerror(errno));
+  }
+}
+
+static void snmp_ssh2_auth_kbdint_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_AUTH_F_KBDINT_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ssh.sshSessions.sshAuth.keyboardInteractiveAuthTotal: %s",
+      strerror(errno));
+  }
+}
+
+static void snmp_ssh2_auth_kbdint_err_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool,
+    SNMP_DB_SSH_AUTH_F_KBDINT_ERR_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ssh.sshSessions.sshAuth.keyboardInteractiveAuthFailureTotal: %s",
+      strerror(errno));
+  }
+}
+
+static void snmp_ssh2_auth_passwd_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_AUTH_F_PASSWD_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ssh.sshSessions.sshAuth.passwordAuthTotal: %s", strerror(errno));
+  }
+}
+
+static void snmp_ssh2_auth_passwd_err_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool,
+    SNMP_DB_SSH_AUTH_F_PASSWD_ERR_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ssh.sshSessions.sshAuth.passwordAuthFailureTotal: %s", strerror(errno));
+  }
+}
+
+static void snmp_ssh2_auth_publickey_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_AUTH_F_PUBLICKEY_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ssh.sshSessions.sshAuth.publickeyAuthTotal: %s", strerror(errno));
+  }
+}
+
+static void snmp_ssh2_auth_publickey_err_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool,
+    SNMP_DB_SSH_AUTH_F_PUBLICKEY_ERR_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "ssh.sshSessions.sshAuth.publickeyAuthFailureTotal: %s", strerror(errno));
+  }
+}
+
+static void snmp_ssh2_sftp_opened_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SFTP_SESS_F_SESS_COUNT, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "sftp.sftpSessions.sessionCount: %s", strerror(errno));
+  }
+
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SFTP_SESS_F_SESS_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "sftp.sftpSessions.sessionTotal: %s", strerror(errno));
+  }
+}
+
+static void snmp_ssh2_sftp_closed_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SFTP_SESS_F_SESS_COUNT, -1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error decrementing SNMP database for "
+      "sftp.sftpSessions.sessionCount: %s", strerror(errno));
+  }
+}
+
+static void snmp_ssh2_scp_opened_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SCP_SESS_F_SESS_COUNT, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "scp.scpSessions.sessionCount: %s", strerror(errno));
+  }
+
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SCP_SESS_F_SESS_TOTAL, 1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error incrementing SNMP database for "
+      "scp.scpSessions.sessionTotal: %s", strerror(errno));
+  }
+}
+
+static void snmp_ssh2_scp_closed_ev(const void *event_data,
+    void *user_data) {
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  res = snmp_db_incr_value(session.pool, SNMP_DB_SCP_SESS_F_SESS_COUNT, -1);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error decrementing SNMP database for "
+      "scp.scpSessions.sessionCount: %s", strerror(errno));
+  }
 }
 
 /* XXX Do we want to support any Controls/ftpctl actions? */
@@ -3117,8 +3677,6 @@ static int snmp_init(void) {
   pr_event_register(&snmp_module, "core.restart", snmp_restart_ev, NULL);
   pr_event_register(&snmp_module, "core.shutdown", snmp_shutdown_ev, NULL);
   pr_event_register(&snmp_module, "core.startup", snmp_startup_ev, NULL);
-
-  pr_event_register(&snmp_module, "mod_snmp.notify", snmp_notify_ev, NULL);
 
   /* Normally we should register the 'core.exit' event listener in the
    * sess_init callback.  However, we use this listener to listen for
@@ -3186,11 +3744,52 @@ static int snmp_sess_init(void) {
   pr_event_register(&snmp_module, "mod_auth.authentication-code",
     snmp_auth_code_ev, NULL);
 
-  /* mod_tls events */
-  pr_event_register(&snmp_module, "mod_tls.ctrl-handshake-failed",
-    snmp_tls_ctrl_handshake_err_ev, NULL);
-  pr_event_register(&snmp_module, "mod_tls.data-handshake-failed",
-    snmp_tls_data_handshake_err_ev, NULL);
+  if (pr_module_exists("mod_tls.c") == TRUE) {
+    /* mod_tls events */
+    pr_event_register(&snmp_module, "mod_tls.ctrl-handshake-failed",
+      snmp_tls_ctrl_handshake_err_ev, NULL);
+    pr_event_register(&snmp_module, "mod_tls.data-handshake-failed",
+      snmp_tls_data_handshake_err_ev, NULL);
+  }
+
+  if (pr_module_exists("mod_sftp.c") == TRUE) {
+    /* mod_sftp events */
+
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.kex.failed",
+      snmp_ssh2_kex_err_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.compression",
+      snmp_ssh2_compress_ev, NULL);
+
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.auth-hostbased",
+      snmp_ssh2_auth_hostbased_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.auth-hostbased.failed",
+      snmp_ssh2_auth_hostbased_err_ev, NULL);
+
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.auth-kbdint",
+      snmp_ssh2_auth_kbdint_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.auth-kbdint.failed",
+      snmp_ssh2_auth_kbdint_err_ev, NULL);
+
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.auth-password",
+      snmp_ssh2_auth_passwd_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.auth-password.failed",
+      snmp_ssh2_auth_passwd_err_ev, NULL);
+
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.auth-publickey",
+      snmp_ssh2_auth_publickey_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.auth-publickey.failed",
+      snmp_ssh2_auth_publickey_err_ev, NULL);
+
+    pr_event_register(&snmp_module, "mod_sftp.sftp.opened",
+      snmp_ssh2_sftp_opened_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.sftp.closed",
+      snmp_ssh2_sftp_closed_ev, NULL);
+
+    pr_event_register(&snmp_module, "mod_sftp.scp.opened",
+      snmp_ssh2_scp_opened_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.scp.closed",
+      snmp_ssh2_scp_closed_ev, NULL);
+  }
 
   /* Initial the MIBs. */
   snmp_mib_init();
