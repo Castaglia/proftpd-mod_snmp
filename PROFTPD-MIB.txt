@@ -666,73 +666,6 @@ snmpModule MODULE-IDENTITY
 --
 
 --
--- ssh.sshSessions.sshAuth arc
---
-        hostbasedAuthTotal OBJECT-TYPE
-            SYNTAX Counter32
-            MAX-ACCESS read-only
-            STATUS current
-            DESCRIPTION
-                " Total number of SSH2 sessions authenticated using hostbased authentication "
-        ::= { sshAuth 1 }
-
-        hostbasedAuthFailureTotal OBJECT-TYPE
-            SYNTAX Counter32
-            MAX-ACCESS read-only
-            STATUS current
-            DESCRIPTION
-                " Total number of SSH2 hostbased authentication failures "
-        ::= { sshAuth 2 }
-
-        keyboardInteractiveAuthTotal OBJECT-TYPE
-            SYNTAX Counter32
-            MAX-ACCESS read-only
-            STATUS current
-            DESCRIPTION
-                " Total number of SSH2 sessions authenticated using keyboard-interactive authentication "
-        ::= { sshAuth 3 }
-
-        keyboardInteractiveAuthFailureTotal OBJECT-TYPE
-            SYNTAX Counter32
-            MAX-ACCESS read-only
-            STATUS current
-            DESCRIPTION
-                " Total number of SSH2 keyboard-interactive authentication failures "
-        ::= { sshAuth 4 }
-
-        passwordAuthTotal OBJECT-TYPE
-            SYNTAX Counter32
-            MAX-ACCESS read-only
-            STATUS current
-            DESCRIPTION
-                " Total number of SSH2 sessions authenticated using password authentication "
-        ::= { sshAuth 5 }
-
-        passwordAuthFailureTotal OBJECT-TYPE
-            SYNTAX Counter32
-            MAX-ACCESS read-only
-            STATUS current
-            DESCRIPTION
-                " Total number of SSH2 password authentication failures "
-        ::= { sshAuth 6 }
-
-        publickeyAuthTotal OBJECT-TYPE
-            SYNTAX Counter32
-            MAX-ACCESS read-only
-            STATUS current
-            DESCRIPTION
-                " Total number of SSH2 sessions authenticated using publickey authentication "
-        ::= { sshAuth 7 }
-
-        publickeyAuthFailureTotal OBJECT-TYPE
-            SYNTAX Counter32
-            MAX-ACCESS read-only
-            STATUS current
-            DESCRIPTION
-                " Total number of SSH2 publickey authentication failures "
-        ::= { sshAuth 8 }
-
---
 -- ssh.sshSessions arc
 --
         keyExchangeFailureTotal OBJECT-TYPE
@@ -741,7 +674,7 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of SSH2 key exchange failures "
-        ::= { sshSessions 2 }
+        ::= { sshSessions 1 }
 
         compressionTotal OBJECT-TYPE
             SYNTAX Counter32
@@ -749,7 +682,74 @@ snmpModule MODULE-IDENTITY
             STATUS current
             DESCRIPTION
                 " Total number of SSH2 sessions using compression "
-        ::= { sshSessions 3 }
+        ::= { sshSessions 2 }
+
+--
+-- ssh.sshLogins arc
+--
+        hostbasedAuthTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 sessions authenticated using hostbased authentication "
+        ::= { sshLogins 1 }
+
+        hostbasedAuthFailureTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 hostbased authentication failures "
+        ::= { sshLogins 2 }
+
+        keyboardInteractiveAuthTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 sessions authenticated using keyboard-interactive authentication "
+        ::= { sshLogins 3 }
+
+        keyboardInteractiveAuthFailureTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 keyboard-interactive authentication failures "
+        ::= { sshLogins 4 }
+
+        passwordAuthTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 sessions authenticated using password authentication "
+        ::= { sshLogins 5 }
+
+        passwordAuthFailureTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 password authentication failures "
+        ::= { sshLogins 6 }
+
+        publickeyAuthTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 sessions authenticated using publickey authentication "
+        ::= { sshLogins 7 }
+
+        publickeyAuthFailureTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of SSH2 publickey authentication failures "
+        ::= { sshLogins 8 }
 
 --
 -- sftp arc
