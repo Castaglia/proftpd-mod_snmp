@@ -1686,6 +1686,7 @@ static void snmp_agent_stop(pid_t agent_pid) {
     }
   }
 
+  snmp_agent_pid = 0;
   return;
 }
 
@@ -3128,7 +3129,9 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
   config_rec *c;
   server_rec *s;
   unsigned int nvhosts = 0;
-  int res;
+  const char *tables_dir;
+  int agent_type, res;
+  pr_netaddr_t *agent_addr;
   unsigned char sftp_loaded = FALSE, tls_loaded = FALSE;
 
   c = find_config(main_server->conf, CONF_PARAM, "SNMPEngine", FALSE);
@@ -3139,6 +3142,9 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
   if (snmp_engine == FALSE) {
     return;
   }
+
+  /* If the agent process is already running, stop it. */
+  snmp_agent_stop(snmp_agent_pid);
 
   snmp_openlog();
 
@@ -3171,7 +3177,9 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  if (snmp_db_set_root(c->argv[0]) < 0) {
+  tables_dir = c->argv[0];
+
+  if (snmp_db_set_root(tables_dir) < 0) {
     /* Unable to configure the SNMPTables root for some reason... */
 
     snmp_engine = FALSE;
@@ -3212,10 +3220,15 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
 
     res = snmp_db_open(snmp_pool, snmp_table_ids[i]);
     if (res < 0) {
-      /* XXX There's a resource leak here.  If we fail to open this table,
-       * BUT have succeeded in opening previous tables, AND then we just
-       * return here, we leave those previously opened tables still open.
+      register unsigned int j;
+
+      /* If we fail to open this table, BUT have succeeded in opening previous
+       * tables, AND we are just going to return here, then we need to make
+       * sure to close the previously opened tables.
        */
+      for (j = 0; snmp_table_ids[j] > 0 && j < i; j++) {
+        (void) snmp_db_close(snmp_pool, snmp_table_ids[j]);
+      }
 
       snmp_engine = FALSE;
       return;
@@ -3233,6 +3246,37 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
       "error incrementing SNMP database for daemon.vhostCount: %s",
       strerror(errno));
   }
+
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPAgent", FALSE);
+  if (c == NULL) {
+    snmp_engine = FALSE;
+    pr_log_debug(DEBUG0, MOD_SNMP_VERSION
+      ": missing required SNMPAgent directive, disabling module");
+
+    /* Need to close database tables here. */
+    for (i = 0; snmp_table_ids[i] > 0; i++) {
+      (void) snmp_db_close(snmp_pool, snmp_table_ids[i]);
+    }
+
+    return;
+  }
+
+  agent_type = *((int *) c->argv[0]);
+  agent_addr = c->argv[1];
+
+  snmp_agent_pid = snmp_agent_start(tables_dir, agent_type, agent_addr);
+  if (snmp_agent_pid == 0) {
+    snmp_engine = FALSE;
+    pr_log_debug(DEBUG0, MOD_SNMP_VERSION
+      ": failed to start agent listening process, disabling module");
+
+    /* Need to close database tables here. */
+    for (i = 0; snmp_table_ids[i] > 0; i++) {
+      (void) snmp_db_close(snmp_pool, snmp_table_ids[i]);
+    }
+  }
+
+  return;
 }
 
 static void snmp_restart_ev(const void *event_data, void *user_data) {
@@ -3256,10 +3300,11 @@ static void snmp_restart_ev(const void *event_data, void *user_data) {
       "error resetting SNMP database counters: %s", strerror(errno));
   }
 
-  /* Bounce the SNMPLog file descriptor. */
+  /* Close the SNMPLog file descriptor; it will be reopened in the
+   * postparse event listener.
+   */
   (void) close(snmp_logfd);
   snmp_logfd = -1;
-  snmp_openlog();
 }
 
 static void snmp_shutdown_ev(const void *event_data, void *user_data) {
@@ -3274,18 +3319,11 @@ static void snmp_shutdown_ev(const void *event_data, void *user_data) {
   destroy_pool(snmp_pool);
   snmp_pool = NULL;
 
-  if (snmp_logfd >= 0) {
-    (void) close(snmp_logfd);
-    snmp_logfd = -1;
-  }
+  (void) close(snmp_logfd);
+  snmp_logfd = -1;
 }
 
 static void snmp_startup_ev(const void *event_data, void *user_data) {
-  config_rec *c;
-  const char *tables_dir;
-  pr_netaddr_t *agent_addr;
-  int agent_type;
-
   if (snmp_engine == FALSE) {
     return;
   }
@@ -3297,38 +3335,7 @@ static void snmp_startup_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  c = find_config(main_server->conf, CONF_PARAM, "SNMPTables", FALSE);
-  if (c == NULL) {
-    /* No SNMPTables configured, mod_snmp cannot run. */
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "no SNMPTables configured, disabling module");
-
-    snmp_engine = FALSE;
-    return;
-  }
-
-  tables_dir = c->argv[0];
-
-  c = find_config(main_server->conf, CONF_PARAM, "SNMPAgent", FALSE);
-  if (c == NULL) {
-    snmp_engine = FALSE;
-    pr_log_debug(DEBUG0, MOD_SNMP_VERSION
-      ": missing required SNMPAgent directive, disabling module");
-    return;
-  }
-
   gettimeofday(&snmp_start_tv, NULL);
-
-  agent_type = *((int *) c->argv[0]);
-  agent_addr = c->argv[1];
-
-  snmp_agent_pid = snmp_agent_start(tables_dir, agent_type, agent_addr);
-  if (snmp_agent_pid == 0) {
-    snmp_engine = FALSE;
-    pr_log_debug(DEBUG0, MOD_SNMP_VERSION
-      ": failed to start agent listening process, disabling module");
-  }
-
   return;
 }
 
