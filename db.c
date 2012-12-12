@@ -117,6 +117,8 @@ static struct snmp_field_info snmp_fields[] = {
     sizeof(uint32_t), "DAEMON_F_SEGFAULT_COUNT" },
   { SNMP_DB_DAEMON_F_MAXINST_COUNT, SNMP_DB_ID_DAEMON, 24,
     sizeof(uint32_t), "DAEMON_F_MAXINST_COUNT" },
+  { SNMP_DB_DAEMON_F_MAXINST_CONF, SNMP_DB_ID_DAEMON, 28,
+    sizeof(uint32_t), "DAEMON_F_MAXINST_CONF" },
 
   /* ftp.sessions fields */
   { SNMP_DB_FTP_SESS_F_SESS_COUNT, SNMP_DB_ID_FTP, 0,
@@ -337,8 +339,8 @@ static struct snmp_db_info snmp_dbs[] = {
    */
   { SNMP_DB_ID_CONN, -1, "conn.dat", NULL, NULL, 0 },
 
-  /* Seven numeric fields only in this table: 7 x 4 bytes = 28 bytes */
-  { SNMP_DB_ID_DAEMON, -1, "daemon.dat", NULL, NULL, 28 },
+  /* Eight numeric fields only in this table: 8 x 4 bytes = 32 bytes */
+  { SNMP_DB_ID_DAEMON, -1, "daemon.dat", NULL, NULL, 32 },
 
   /* The size of the ftp table is calculated as:
    *
@@ -1094,6 +1096,14 @@ int snmp_db_get_value(pool *p, unsigned int field, int32_t *int_value,
         snmp_db_get_fieldstr(p, field));
       return 0;
     }
+
+    case SNMP_DB_DAEMON_F_MAXINST_CONF:
+      *int_value = ServerMaxInstances;
+
+      pr_trace_msg(trace_channel, 19,
+        "read value %lu for field %s", (unsigned long) *int_value,
+        snmp_db_get_fieldstr(p, field));
+      return 0;
 
     default:
       break;

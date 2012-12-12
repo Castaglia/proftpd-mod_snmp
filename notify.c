@@ -40,13 +40,17 @@ struct snmp_notify_oid {
 };
 
 static struct snmp_notify_oid notify_oids[] = {
+  { SNMP_NOTIFY_DAEMON_MAX_INSTANCES,
+    { SNMP_MIB_DAEMON_NOTIFY_OID_MAX_INSTANCES, 0 },
+    SNMP_MIB_DAEMON_NOTIFY_OIDLEN_MAX_INSTANCES + 1 },
+
   { SNMP_NOTIFY_FTP_BAD_PASSWD,
-    { SNMP_MIB_FTP_NOTIFICATIONS_OID_LOGIN_BAD_PASSWORD, 0 },
-    SNMP_MIB_FTP_NOTIFICATIONS_OIDLEN_LOGIN_BAD_PASSWORD + 1 },
+    { SNMP_MIB_FTP_NOTIFY_OID_LOGIN_BAD_PASSWORD, 0 },
+    SNMP_MIB_FTP_NOTIFY_OIDLEN_LOGIN_BAD_PASSWORD + 1 },
 
   { SNMP_NOTIFY_FTP_BAD_USER,
-    { SNMP_MIB_FTP_NOTIFICATIONS_OID_LOGIN_BAD_USER, 0 },
-    SNMP_MIB_FTP_NOTIFICATIONS_OIDLEN_LOGIN_BAD_USER + 1 },
+    { SNMP_MIB_FTP_NOTIFY_OID_LOGIN_BAD_USER, 0 },
+    SNMP_MIB_FTP_NOTIFY_OIDLEN_LOGIN_BAD_USER + 1 },
 
   { 0, { }, 0 }
 };
@@ -55,6 +59,10 @@ static const char *get_notify_str(unsigned int notify_id) {
   const char *name = NULL;
 
   switch (notify_id) {
+    case SNMP_NOTIFY_DAEMON_MAX_INSTANCES:
+      name = "maxInstancesExceeded";
+      break;
+
     case SNMP_NOTIFY_FTP_BAD_PASSWD:
       name = "loginFailedBadPassword";
       break;
@@ -147,6 +155,41 @@ static int get_notify_varlist(pool *p, unsigned int notify_id,
   int var_count = 0;
 
   switch (notify_id) {
+    case SNMP_NOTIFY_DAEMON_MAX_INSTANCES: {
+      struct snmp_var *var;
+      int32_t int_value = 0;
+      char *str_value = NULL;
+      size_t str_valuelen = 0;
+      int res;
+
+      /* The MaxInstances check happens very early on in the session
+       * lifecycle, thus there is not much information that we can add
+       * to notifications for this event, other than the fact that it
+       * happened.
+       *
+       * Per PROFTPD-MIB, we need to include:
+       *
+       *  daemon.maxInstancesConfig
+       */
+
+      res = snmp_db_get_value(p, SNMP_DB_DAEMON_F_MAXINST_CONF, &int_value,
+        &str_value, &str_valuelen);
+      if (res < 0) {
+        pr_trace_msg(trace_channel, 5,
+          "unable to get daemon.maxInstancesConfig value: %s", strerror(errno));
+
+      } else {
+        oid_t oid[] = { SNMP_MIB_DAEMON_OID_MAXINST_CONF, 0 };
+        unsigned int oidlen = SNMP_MIB_DAEMON_OIDLEN_MAXINST_CONF + 1;
+
+        var = snmp_smi_create_var(p, oid, oidlen, SNMP_SMI_INTEGER, int_value,
+          str_value, str_valuelen);
+        var_count = snmp_smi_util_add_list_var(head_var, &tail_var, var);
+      }
+
+      return var_count;
+    }
+
     case SNMP_NOTIFY_FTP_BAD_PASSWD:
     case SNMP_NOTIFY_FTP_BAD_USER: {
       struct snmp_var *var;

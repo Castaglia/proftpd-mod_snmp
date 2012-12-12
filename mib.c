@@ -184,6 +184,21 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "daemon.maxInstancesLimitCount.0",
     SNMP_SMI_COUNTER32 },
 
+  { { SNMP_MIB_DAEMON_OID_MAXINST_CONF, 0 },
+    SNMP_MIB_DAEMON_OIDLEN_MAXINST_CONF + 1,
+    SNMP_DB_DAEMON_F_MAXINST_CONF, TRUE,
+    SNMP_MIB_NAME_PREFIX "daemon.maxInstancesConfig",
+    SNMP_MIB_NAME_PREFIX "daemon.maxInstancesConfig.0",
+    SNMP_SMI_INTEGER },
+
+  /* daemon.daemonNotifications MIBs */
+  { { SNMP_MIB_DAEMON_NOTIFY_OID_MAX_INSTANCES, 0 },
+    SNMP_MIB_DAEMON_NOTIFY_OIDLEN_MAX_INSTANCES + 1,
+    0, TRUE,
+    SNMP_MIB_NAME_PREFIX "daemon.daemonNotifications.maxInstancesExceeded",
+    SNMP_MIB_NAME_PREFIX "daemon.daemonNotifications.maxInstancesExceeded.0",
+    SNMP_SMI_NULL },
+
   /* ftp.sessions MIBs */
   { { SNMP_MIB_FTP_SESS_OID_SESS_COUNT, 0 },
     SNMP_MIB_FTP_SESS_OIDLEN_SESS_COUNT + 1,
@@ -363,19 +378,19 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ftp.timeouts.stalledTimeoutTotal.0",
     SNMP_SMI_COUNTER32 },
 
-  /* ftp.notifications MIBs */
-  { { SNMP_MIB_FTP_NOTIFICATIONS_OID_LOGIN_BAD_PASSWORD, 0 },
-    SNMP_MIB_FTP_NOTIFICATIONS_OIDLEN_LOGIN_BAD_PASSWORD + 1,
+  /* ftp.ftpNotifications MIBs */
+  { { SNMP_MIB_FTP_NOTIFY_OID_LOGIN_BAD_PASSWORD, 0 },
+    SNMP_MIB_FTP_NOTIFY_OIDLEN_LOGIN_BAD_PASSWORD + 1,
     0, TRUE,
-    SNMP_MIB_NAME_PREFIX "ftp.notifications.loginBadPassword",
-    SNMP_MIB_NAME_PREFIX "ftp.notifications.loginBadPassword.0",
+    SNMP_MIB_NAME_PREFIX "ftp.ftpNotifications.loginBadPassword",
+    SNMP_MIB_NAME_PREFIX "ftp.ftpNotifications.loginBadPassword.0",
     SNMP_SMI_NULL },
 
-  { { SNMP_MIB_FTP_NOTIFICATIONS_OID_LOGIN_BAD_USER, 0 },
-    SNMP_MIB_FTP_NOTIFICATIONS_OIDLEN_LOGIN_BAD_USER + 1,
+  { { SNMP_MIB_FTP_NOTIFY_OID_LOGIN_BAD_USER, 0 },
+    SNMP_MIB_FTP_NOTIFY_OIDLEN_LOGIN_BAD_USER + 1,
     0, TRUE,
-    SNMP_MIB_NAME_PREFIX "ftp.notifications.loginBadUser",
-    SNMP_MIB_NAME_PREFIX "ftp.notifications.loginBadUser.0",
+    SNMP_MIB_NAME_PREFIX "ftp.ftpNotifications.loginBadUser",
+    SNMP_MIB_NAME_PREFIX "ftp.ftpNotifications.loginBadUser.0",
     SNMP_SMI_NULL },
 
   /* snmp MIBs */

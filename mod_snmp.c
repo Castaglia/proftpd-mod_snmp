@@ -3101,6 +3101,24 @@ static void snmp_max_inst_ev(const void *event_data, void *user_data) {
       "error decrementing SNMP database for daemon.maxInstancesLimitTotal: %s",
       strerror(errno));
   }
+
+  if (snmp_notifys != NULL) {
+    register unsigned int i;
+    pr_netaddr_t **dst_addrs;
+    unsigned int notify_id = SNMP_NOTIFY_DAEMON_MAX_INSTANCES;
+
+    dst_addrs = snmp_notifys->elts;
+    for (i = 0; i < snmp_notifys->nelts; i++) {
+      res = snmp_notify_generate(snmp_pool, -1, snmp_community,
+        session.c->local_addr, dst_addrs[i], notify_id);
+      if (res < 0) {
+        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+          "unable to send daemonMaxInstancesExceeded notification to "
+          "SNMPNotify %s:%d: %s", pr_netaddr_get_ipstr(dst_addrs[i]),
+          ntohs(pr_netaddr_get_port(dst_addrs[i])), strerror(errno));
+      }
+    }
+  }
 }
 
 #if defined(PR_SHARED_MODULE)

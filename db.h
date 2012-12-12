@@ -70,6 +70,7 @@ extern int snmp_table_ids[];
 #define SNMP_DB_DAEMON_F_RESTART_COUNT				109
 #define SNMP_DB_DAEMON_F_SEGFAULT_COUNT				110
 #define SNMP_DB_DAEMON_F_MAXINST_COUNT				111
+#define SNMP_DB_DAEMON_F_MAXINST_CONF				112
 
 /* ftp.sessions database fields */
 #define SNMP_DB_FTP_SESS_F_SESS_COUNT				120

@@ -35,7 +35,7 @@ snmpModule MODULE-IDENTITY
         connection               OBJECT IDENTIFIER ::= { snmpModule 0 }
 
         daemon                   OBJECT IDENTIFIER ::= { snmpModule 1 }
-        daemonNotifications      OBJECT IDENTIFIER ::= { daemon 1 }
+        daemonNotifications      OBJECT IDENTIFIER ::= { daemon 13 }
 
         ftp                      OBJECT IDENTIFIER ::= { snmpModule 2 }
         sessions                 OBJECT IDENTIFIER ::= { ftp 1 }
@@ -213,9 +213,25 @@ snmpModule MODULE-IDENTITY
                 " Total number of times the MaxInstances limit has been reached "
         ::= { daemon 11 }
 
+        maxInstancesConfig OBJECT-TYPE
+            SYNTAX Integer32
+            MAX-ACCESS accessible-for-notify
+            STATUS current
+            DESCRIPTION
+                " Configured MaxInstances limit for the daemon "
+        ::= { daemon 12 }
+
+--      NOTE: daemon.13 is the start of the daemon notifications arc
+
 --
 -- daemon.daemonNotifications arc
 --
+        maxInstancesExceeded NOTIFICATION-TYPE
+            OBJECTS { maxInstancesConfig }
+            STATUS  current
+            DESCRIPTION
+                " Notification of when MaxInstances limit exceeded "
+        ::= { daemonNotifications 1 }
 
 --
 -- ftp arc
