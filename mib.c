@@ -177,11 +177,11 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "daemon.segfaultCount.0",
     SNMP_SMI_COUNTER32 },
 
-  { { SNMP_MIB_DAEMON_OID_MAXINST_COUNT, 0 },
-    SNMP_MIB_DAEMON_OIDLEN_MAXINST_COUNT + 1,
-    SNMP_DB_DAEMON_F_MAXINST_COUNT, TRUE,
-    SNMP_MIB_NAME_PREFIX "daemon.maxInstancesLimitCount",
-    SNMP_MIB_NAME_PREFIX "daemon.maxInstancesLimitCount.0",
+  { { SNMP_MIB_DAEMON_OID_MAXINST_TOTAL, 0 },
+    SNMP_MIB_DAEMON_OIDLEN_MAXINST_TOTAL + 1,
+    SNMP_DB_DAEMON_F_MAXINST_TOTAL, TRUE,
+    SNMP_MIB_NAME_PREFIX "daemon.maxInstancesLimitTotal",
+    SNMP_MIB_NAME_PREFIX "daemon.maxInstancesLimitTotal.0",
     SNMP_SMI_COUNTER32 },
 
   { { SNMP_MIB_DAEMON_OID_MAXINST_CONF, 0 },
@@ -551,6 +551,28 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ftps.tlsDataTransfers.kbDownloadTotal.0",
     SNMP_SMI_COUNTER32 },
 
+  /* ssh.sshSessions MIBs */
+  { { SNMP_MIB_SSH_SESS_OID_KEX_ERR_TOTAL, 0 },
+    SNMP_MIB_SSH_SESS_OIDLEN_KEX_ERR_TOTAL + 1,
+    SNMP_DB_SSH_SESS_F_KEX_ERR_TOTAL, FALSE,
+    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.keyExchangeFailureTotal",
+    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.keyExchangeFailureTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_SSH_SESS_OID_C2S_COMPRESS_TOTAL, 0 },
+    SNMP_MIB_SSH_SESS_OIDLEN_C2S_COMPRESS_TOTAL + 1,
+    SNMP_DB_SSH_SESS_F_C2S_COMPRESS_TOTAL, FALSE,
+    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.clientCompressionTotal",
+    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.clientCompressionTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_SSH_SESS_OID_S2C_COMPRESS_TOTAL, 0 },
+    SNMP_MIB_SSH_SESS_OIDLEN_S2C_COMPRESS_TOTAL + 1,
+    SNMP_DB_SSH_SESS_F_S2C_COMPRESS_TOTAL, FALSE,
+    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.serverCompressionTotal",
+    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.serverCompressionTotal.0",
+    SNMP_SMI_COUNTER32 },
+
   /* ssh.sshLogins MIBs */
   { { SNMP_MIB_SSH_LOGINS_OID_HOSTBASED_TOTAL, 0 },
     SNMP_MIB_SSH_LOGINS_OIDLEN_HOSTBASED_TOTAL + 1,
@@ -608,22 +630,6 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ssh.sshLogins.publickeyAuthFailureTotal.0",
     SNMP_SMI_COUNTER32 },
 
-  /* ssh.sshSessions MIBs */
-  { { SNMP_MIB_SSH_SESS_OID_KEX_ERR_TOTAL, 0 },
-    SNMP_MIB_SSH_SESS_OIDLEN_KEX_ERR_TOTAL + 1,
-    SNMP_DB_SSH_SESS_F_KEX_ERR_TOTAL, FALSE,
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.keyExchangeFailureTotal",
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.keyExchangeFailureTotal.0",
-    SNMP_SMI_COUNTER32 },
-
-  { { SNMP_MIB_SSH_SESS_OID_COMPRESS_TOTAL, 0 },
-    SNMP_MIB_SSH_SESS_OIDLEN_COMPRESS_TOTAL + 1,
-    SNMP_DB_SSH_SESS_F_COMPRESS_TOTAL, FALSE,
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.compressTotal",
-    SNMP_MIB_NAME_PREFIX "ssh.sshSessions.compressTotal.0",
-    SNMP_SMI_COUNTER32 },
-
-  /* sftp.sftpSessions MIBs */
   { { SNMP_MIB_SFTP_SESS_OID_COUNT, 0 },
     SNMP_MIB_SFTP_SESS_OIDLEN_COUNT + 1,
     SNMP_DB_SFTP_SESS_F_SESS_COUNT, FALSE,

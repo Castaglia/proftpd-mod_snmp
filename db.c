@@ -115,8 +115,8 @@ static struct snmp_field_info snmp_fields[] = {
     sizeof(uint32_t), "DAEMON_F_RESTART_COUNT" },
   { SNMP_DB_DAEMON_F_SEGFAULT_COUNT, SNMP_DB_ID_DAEMON, 20,
     sizeof(uint32_t), "DAEMON_F_SEGFAULT_COUNT" },
-  { SNMP_DB_DAEMON_F_MAXINST_COUNT, SNMP_DB_ID_DAEMON, 24,
-    sizeof(uint32_t), "DAEMON_F_MAXINST_COUNT" },
+  { SNMP_DB_DAEMON_F_MAXINST_TOTAL, SNMP_DB_ID_DAEMON, 24,
+    sizeof(uint32_t), "DAEMON_F_MAXINST_TOTAL" },
   { SNMP_DB_DAEMON_F_MAXINST_CONF, SNMP_DB_ID_DAEMON, 28,
     sizeof(uint32_t), "DAEMON_F_MAXINST_CONF" },
 
@@ -233,25 +233,27 @@ static struct snmp_field_info snmp_fields[] = {
   /* ssh.sshSessions fields */
   { SNMP_DB_SSH_SESS_F_KEX_ERR_TOTAL, SNMP_DB_ID_SSH, 0,
     sizeof(uint32_t), "SSH_SESS_F_KEX_ERR_TOTAL" },
-  { SNMP_DB_SSH_SESS_F_COMPRESS_TOTAL, SNMP_DB_ID_SSH, 4,
-    sizeof(uint32_t), "SSH_SESS_F_COMPRESS_TOTAL" },
+  { SNMP_DB_SSH_SESS_F_C2S_COMPRESS_TOTAL, SNMP_DB_ID_SSH, 4,
+    sizeof(uint32_t), "SSH_SESS_F_C2S_COMPRESS_TOTAL" },
+  { SNMP_DB_SSH_SESS_F_S2C_COMPRESS_TOTAL, SNMP_DB_ID_SSH, 8,
+    sizeof(uint32_t), "SSH_SESS_F_S2C_COMPRESS_TOTAL" },
 
   /* ssh.sshLogins fields */
-  { SNMP_DB_SSH_LOGINS_F_HOSTBASED_TOTAL, SNMP_DB_ID_SSH, 8,
+  { SNMP_DB_SSH_LOGINS_F_HOSTBASED_TOTAL, SNMP_DB_ID_SSH, 12,
     sizeof(uint32_t), "SSH_LOGINS_F_HOSTBASED_TOTAL" },
-  { SNMP_DB_SSH_LOGINS_F_HOSTBASED_ERR_TOTAL, SNMP_DB_ID_SSH, 12,
+  { SNMP_DB_SSH_LOGINS_F_HOSTBASED_ERR_TOTAL, SNMP_DB_ID_SSH, 16,
     sizeof(uint32_t), "SSH_LOGINS_F_HOSTBASED_ERR_TOTAL" },
-  { SNMP_DB_SSH_LOGINS_F_KBDINT_TOTAL, SNMP_DB_ID_SSH, 16,
+  { SNMP_DB_SSH_LOGINS_F_KBDINT_TOTAL, SNMP_DB_ID_SSH, 20,
     sizeof(uint32_t), "SSH_LOGINS_F_KBDINT_TOTAL" },
-  { SNMP_DB_SSH_LOGINS_F_KBDINT_ERR_TOTAL, SNMP_DB_ID_SSH, 20,
+  { SNMP_DB_SSH_LOGINS_F_KBDINT_ERR_TOTAL, SNMP_DB_ID_SSH, 24,
     sizeof(uint32_t), "SSH_LOGINS_F_KBDINT_ERR_TOTAL" },
-  { SNMP_DB_SSH_LOGINS_F_PASSWD_TOTAL, SNMP_DB_ID_SSH, 24,
+  { SNMP_DB_SSH_LOGINS_F_PASSWD_TOTAL, SNMP_DB_ID_SSH, 28,
     sizeof(uint32_t), "SSH_LOGINS_F_PASSWD_TOTAL" },
-  { SNMP_DB_SSH_LOGINS_F_PASSWD_ERR_TOTAL, SNMP_DB_ID_SSH, 28,
+  { SNMP_DB_SSH_LOGINS_F_PASSWD_ERR_TOTAL, SNMP_DB_ID_SSH, 32,
     sizeof(uint32_t), "SSH_LOGINS_F_PASSWD_ERR_TOTAL" },
-  { SNMP_DB_SSH_LOGINS_F_PUBLICKEY_TOTAL, SNMP_DB_ID_SSH, 32,
+  { SNMP_DB_SSH_LOGINS_F_PUBLICKEY_TOTAL, SNMP_DB_ID_SSH, 36,
     sizeof(uint32_t), "SSH_LOGINS_F_PUBLICKEY_TOTAL" },
-  { SNMP_DB_SSH_LOGINS_F_PUBLICKEY_ERR_TOTAL, SNMP_DB_ID_SSH, 36,
+  { SNMP_DB_SSH_LOGINS_F_PUBLICKEY_ERR_TOTAL, SNMP_DB_ID_SSH, 40,
     sizeof(uint32_t), "SSH_LOGINS_F_PUBLICKEY_ERR_TOTAL" },
 
   /* sftp.sftpSessions fields */
@@ -371,12 +373,12 @@ static struct snmp_db_info snmp_dbs[] = {
 
   /* The size of the ssh table is calculated as:
    *
-   *  2 session fields        x 4 bytes =  8 bytes
+   *  3 session fields        x 4 bytes = 12 bytes
    *  8 auth fields           x 4 bytes = 32 bytes
    *
    * for a total of 40 bytes.
    */
-  { SNMP_DB_ID_SSH, -1, "ssh.dat", NULL, NULL, 40 },
+  { SNMP_DB_ID_SSH, -1, "ssh.dat", NULL, NULL, 44 },
 
   /* The size of the sftp table is calculated as:
    *

@@ -2946,9 +2946,21 @@ MODRET snmp_log_auth(cmd_rec *cmd) {
 /* Event handlers
  */
 
+static void ev_incr_value(unsigned int field_id, const char *field_str,
+    int32_t incr) {
+  int res;
+  
+  res = snmp_db_incr_value(session.pool, field_id, incr);
+  if (res < 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "error %s SNMP database for %s: %s",
+      incr < 0 ? "decrementing" : "incrementing", field_str, strerror(errno));
+  }
+}
+
 static void snmp_auth_code_ev(const void *event_data, void *user_data) {
-  int auth_code, db_field, res;
-  unsigned int notify_id = 0;
+  int auth_code, res;
+  unsigned int field_id, notify_id = 0;
   const char *notify_str = NULL, *proto;
 
   if (snmp_engine == FALSE) {
@@ -2969,28 +2981,23 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
 
   switch (auth_code) {
     case PR_AUTH_NOPWD:
-      db_field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_USER_TOTAL;
+      field_id = SNMP_DB_FTP_LOGINS_F_ERR_BAD_USER_TOTAL;
       notify_id = SNMP_NOTIFY_FTP_BAD_USER;
       notify_str = "loginFailedBadUser";
       break;
 
     case PR_AUTH_BADPWD:
-      db_field = SNMP_DB_FTP_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
+      field_id = SNMP_DB_FTP_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
       notify_id = SNMP_NOTIFY_FTP_BAD_PASSWD;
       notify_str = "loginFailedBadPassword";
       break;
 
     default:
-      db_field = SNMP_DB_FTP_LOGINS_F_ERR_GENERAL_TOTAL;
+      field_id = SNMP_DB_FTP_LOGINS_F_ERR_GENERAL_TOTAL;
       break;
   }
-  
-  res = snmp_db_incr_value(session.pool, db_field, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error decrementing SNMP database for login failure total: %s",
-      strerror(errno));
-  }
+ 
+  ev_incr_value(field_id, "login failure total", 1); 
 
   if (notify_id > 0 &&
       snmp_notifys != NULL) {
@@ -3012,70 +3019,43 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
 }
 
 static void snmp_cmd_invalid_ev(const void *event_data, void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
   
-  res = snmp_db_incr_value(session.pool,
-    SNMP_DB_FTP_SESS_F_CMD_INVALID_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ftp.connections.commandInvalidTotal: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_FTP_SESS_F_CMD_INVALID_TOTAL,
+    "ftp.connections.commandInvalidTotal", 1);
 }
 
 static void snmp_exit_ev(const void *event_data, void *user_data) {
-  int res;
+
+  if (snmp_engine == FALSE) {
+    return;
+  }
 
   if (session.disconnect_reason == PR_SESS_DISCONNECT_SESSION_INIT_FAILED) {
-    res = snmp_db_incr_value(snmp_pool,
-      SNMP_DB_DAEMON_F_CONN_REFUSED_TOTAL, 1);
-    if (res < 0) {
-      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "error decrementing SNMP database for "
-        "daemon.connectionRefusedTotal: %s", strerror(errno));
-    }
+    ev_incr_value(SNMP_DB_DAEMON_F_CONN_REFUSED_TOTAL,
+      "daemon.connectionRefusedTotal", 1);
 
   } else {
     const char *proto;
 
-    res = snmp_db_incr_value(snmp_pool, SNMP_DB_DAEMON_F_CONN_COUNT, -1);
-    if (res < 0) {
-      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "error decrementing SNMP database for daemon.connectionCount: %s",
-        strerror(errno));
-    }
+    ev_incr_value(SNMP_DB_DAEMON_F_CONN_COUNT, "daemon.connectionCount", -1);
 
     proto = pr_session_get_protocol(0);
 
     if (strncmp(proto, "ftp", 4) == 0) {
-      res = snmp_db_incr_value(snmp_pool, SNMP_DB_FTP_SESS_F_SESS_COUNT, -1);
-      if (res < 0) {
-        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-          "error decrementing SNMP database for ftp.sessions.sessionCount: %s",
-          strerror(errno));
-      }
+      ev_incr_value(SNMP_DB_FTP_SESS_F_SESS_COUNT,
+        "ftp.sessions.sessionCount", -1);
 
       if (session.anon_config != NULL) {
-        res = snmp_db_incr_value(snmp_pool,
-          SNMP_DB_FTP_LOGINS_F_ANON_COUNT, -1);
-        if (res < 0) {
-          (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-            "error decrementing SNMP database for "
-            "ftp.logins.anonLoginCount: %s", strerror(errno));
-        }
+        ev_incr_value(SNMP_DB_FTP_LOGINS_F_ANON_COUNT,
+          "ftp.logins.anonLoginCount", -1);
       }
 
     } else if (strncmp(proto, "ftps", 5) == 0) {
-      res = snmp_db_incr_value(snmp_pool, SNMP_DB_FTPS_SESS_F_SESS_COUNT, -1);
-      if (res < 0) {
-        (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-          "error decrementing SNMP database for "
-          "ftps.tlsSessions.sessionCount: %s", strerror(errno));
-      }
+      ev_incr_value(SNMP_DB_FTPS_SESS_F_SESS_COUNT,
+        "ftps.tlsSessions.sessionCount", -1);
 
     } else {
       /* XXX ssh2/sftp/scp session end */
@@ -3089,23 +3069,18 @@ static void snmp_exit_ev(const void *event_data, void *user_data) {
 }
 
 static void snmp_max_inst_ev(const void *event_data, void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
-  
-  res = snmp_db_incr_value(session.pool, SNMP_DB_DAEMON_F_MAXINST_COUNT, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error decrementing SNMP database for daemon.maxInstancesLimitTotal: %s",
-      strerror(errno));
-  }
 
+  ev_incr_value(SNMP_DB_DAEMON_F_MAXINST_TOTAL,
+    "daemon.maxInstancesLimitTotal", 1);
+  
   if (snmp_notifys != NULL) {
     register unsigned int i;
     pr_netaddr_t **dst_addrs;
     unsigned int notify_id = SNMP_NOTIFY_DAEMON_MAX_INSTANCES;
+    int res;
 
     dst_addrs = snmp_notifys->elts;
     for (i = 0; i < snmp_notifys->nelts; i++) {
@@ -3258,12 +3233,7 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
     nvhosts++;
   }
 
-  res = snmp_db_incr_value(snmp_pool, SNMP_DB_DAEMON_F_VHOST_COUNT, nvhosts);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for daemon.vhostCount: %s",
-      strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_DAEMON_F_VHOST_COUNT, "daemon.vhostCount", nvhosts);
 
   c = find_config(main_server->conf, CONF_PARAM, "SNMPAgent", FALSE);
   if (c == NULL) {
@@ -3304,12 +3274,7 @@ static void snmp_restart_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  res = snmp_db_incr_value(snmp_pool, SNMP_DB_DAEMON_F_RESTART_COUNT, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for daemon.restartCount: %s",
-      strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_DAEMON_F_RESTART_COUNT, "daemon.restartCount", 1);
 
   pr_trace_msg(trace_channel, 17, "restart event received, resetting counters");
   res = snmp_mib_reset_counters();
@@ -3358,345 +3323,259 @@ static void snmp_startup_ev(const void *event_data, void *user_data) {
 }
 
 static void snmp_timeout_idle_ev(const void *event_data, void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_FTP_TIMEOUTS_F_IDLE_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing ftp.timeouts.idleTimeoutTotal: %s",
-       strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_FTP_TIMEOUTS_F_IDLE_TOTAL,
+    "ftp.timeouts.idleTimeoutTotal", 1);
 }
 
 static void snmp_timeout_login_ev(const void *event_data, void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_FTP_TIMEOUTS_F_LOGIN_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing ftp.timeouts.loginTimeoutTotal: %s",
-       strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_FTP_TIMEOUTS_F_LOGIN_TOTAL,
+    "ftp.timeouts.loginTimeoutTotal", 1);
 }
 
 static void snmp_timeout_noxfer_ev(const void *event_data, void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool,
-    SNMP_DB_FTP_TIMEOUTS_F_NOXFER_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing ftp.timeouts.noTransferTimeoutTotal: %s",
-       strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_FTP_TIMEOUTS_F_NOXFER_TOTAL,
+    "ftp.timeouts.noTransferTimeoutTotal", 1);
 }
 
 static void snmp_timeout_stalled_ev(const void *event_data, void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool,
-    SNMP_DB_FTP_TIMEOUTS_F_STALLED_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing ftp.timeouts.stalledTimeoutTotal: %s",
-       strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_FTP_TIMEOUTS_F_STALLED_TOTAL,
+    "ftp.timeouts.stalledTimeoutTotal", 1);
 }
 
 /* mod_tls-generated events */
 static void snmp_tls_ctrl_handshake_err_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
   
-  res = snmp_db_incr_value(session.pool,
-    SNMP_DB_FTPS_SESS_F_CTRL_HANDSHAKE_ERR_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ftps.tlsSessions.ctrlHandshakeFailureTotal: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_FTPS_SESS_F_CTRL_HANDSHAKE_ERR_TOTAL,
+    "ftps.tlsSessions.ctrlHandshakeFailureTotal", 1);
 }
 
 static void snmp_tls_data_handshake_err_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
   
-  res = snmp_db_incr_value(session.pool,
-    SNMP_DB_FTPS_SESS_F_DATA_HANDSHAKE_ERR_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ftps.tlsSessions.dataHandshakeFailureTotal: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_FTPS_SESS_F_DATA_HANDSHAKE_ERR_TOTAL,
+    "ftps.tlsSessions.dataHandshakeFailureTotal", 1);
 }
 
 /* mod_sftp-generated events */
 static void snmp_ssh2_kex_err_ev(const void *event_data, void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_SESS_F_KEX_ERR_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ssh.sshSessions.keyExchangeFailureTotal: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_SSH_SESS_F_KEX_ERR_TOTAL,
+    "ssh.sshSessions.keyExchangeFailureTotal", 1);
 }
 
-static void snmp_ssh2_compress_ev(const void *event_data, void *user_data) {
-  int res;
-
+static void snmp_ssh2_c2s_compress_ev(const void *event_data, void *user_data) {
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_SESS_F_COMPRESS_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ssh.sshSessions.compressionTotal: %s", strerror(errno));
+  ev_incr_value(SNMP_DB_SSH_SESS_F_C2S_COMPRESS_TOTAL,
+    "ssh.sshSessions.clientCompressionTotal", 1);
+}
+
+static void snmp_ssh2_s2c_compress_ev(const void *event_data, void *user_data) {
+  if (snmp_engine == FALSE) {
+    return;
   }
+
+  ev_incr_value(SNMP_DB_SSH_SESS_F_S2C_COMPRESS_TOTAL,
+    "ssh.sshSessions.serverCompressionTotal", 1);
 }
 
 static void snmp_ssh2_auth_hostbased_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool,
-    SNMP_DB_SSH_LOGINS_F_HOSTBASED_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ssh.sshLogins.hostbasedAuthTotal: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_SSH_LOGINS_F_HOSTBASED_TOTAL,
+    "ssh.sshLogins.hostbasedAuthTotal", 1);
 }
 
 static void snmp_ssh2_auth_hostbased_err_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool,
-    SNMP_DB_SSH_LOGINS_F_HOSTBASED_ERR_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ssh.sshLogins.hostbasedAuthFailureTotal: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_SSH_LOGINS_F_HOSTBASED_ERR_TOTAL,
+    "ssh.sshLogins.hostbasedAuthFailureTotal", 1);
 }
 
 static void snmp_ssh2_auth_kbdint_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_LOGINS_F_KBDINT_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ssh.sshLogins.keyboardInteractiveAuthTotal: %s",
-      strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_SSH_LOGINS_F_KBDINT_TOTAL,
+    "ssh.sshLogins.keyboardInteractiveAuthTotal", 1);
 }
 
 static void snmp_ssh2_auth_kbdint_err_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool,
-    SNMP_DB_SSH_LOGINS_F_KBDINT_ERR_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ssh.sshLogins.keyboardInteractiveAuthFailureTotal: %s",
-      strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_SSH_LOGINS_F_KBDINT_ERR_TOTAL,
+    "ssh.sshLogins.keyboardInteractiveAuthFailureTotal", 1);
 }
 
 static void snmp_ssh2_auth_passwd_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SSH_LOGINS_F_PASSWD_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ssh.sshLogins.passwordAuthTotal: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_SSH_LOGINS_F_PASSWD_TOTAL,
+    "ssh.sshLogins.passwordAuthTotal", 1);
 }
 
 static void snmp_ssh2_auth_passwd_err_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool,
-    SNMP_DB_SSH_LOGINS_F_PASSWD_ERR_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ssh.sshLogins.passwordAuthFailureTotal: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_SSH_LOGINS_F_PASSWD_ERR_TOTAL,
+    "ssh.sshLogins.passwordAuthFailureTotal", 1);
 }
 
 static void snmp_ssh2_auth_publickey_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool,
-    SNMP_DB_SSH_LOGINS_F_PUBLICKEY_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ssh.sshLogins.publickeyAuthTotal: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_SSH_LOGINS_F_PUBLICKEY_TOTAL,
+    "ssh.sshLogins.publickeyAuthTotal", 1);
 }
 
 static void snmp_ssh2_auth_publickey_err_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool,
-    SNMP_DB_SSH_LOGINS_F_PUBLICKEY_ERR_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "ssh.sshLogins.publickeyAuthFailureTotal: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_SSH_LOGINS_F_PUBLICKEY_ERR_TOTAL,
+    "ssh.sshLogins.publickeyAuthFailureTotal", 1);
 }
 
-static void snmp_ssh2_sftp_opened_ev(const void *event_data,
+static void snmp_ssh2_sftp_proto_version_ev(const void *event_data,
     void *user_data) {
-  int res;
+  unsigned long protocol_version;
+  unsigned int field_id;
+  const char *field_str;
 
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SFTP_SESS_F_SESS_COUNT, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "sftp.sftpSessions.sessionCount: %s", strerror(errno));
+  if (event_data == NULL) {
+    /* Missing required data. */
+    return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SFTP_SESS_F_SESS_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "sftp.sftpSessions.sessionTotal: %s", strerror(errno));
+  protocol_version = *((unsigned long *) event_data);
+
+  switch (protocol_version) {
+    case 3:
+      field_id = SNMP_DB_SFTP_SESS_F_SFTP_V3_TOTAL;
+      field_str = "sftp.sftpSessions.protocolVersion3Total";
+      break;
+
+    case 4:
+      field_id = SNMP_DB_SFTP_SESS_F_SFTP_V4_TOTAL;
+      field_str = "sftp.sftpSessions.protocolVersion4Total";
+      break;
+
+    case 5:
+      field_id = SNMP_DB_SFTP_SESS_F_SFTP_V5_TOTAL;
+      field_str = "sftp.sftpSessions.protocolVersion5Total";
+      break;
+
+    case 6:
+      field_id = SNMP_DB_SFTP_SESS_F_SFTP_V6_TOTAL;
+      field_str = "sftp.sftpSessions.protocolVersion6Total";
+      break;
+
+    default:
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "unknown SFTP protocol version %lu, ignoring", protocol_version);
+      return;
   }
+
+  ev_incr_value(field_id, field_str, 1);
 }
 
-static void snmp_ssh2_sftp_closed_ev(const void *event_data,
+static void snmp_ssh2_sftp_sess_opened_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SFTP_SESS_F_SESS_COUNT, -1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error decrementing SNMP database for "
-      "sftp.sftpSessions.sessionCount: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_SFTP_SESS_F_SESS_COUNT,
+    "sftp.sftpSessions.sessionCount", 1);
+  ev_incr_value(SNMP_DB_SFTP_SESS_F_SESS_TOTAL,
+    "sftp.sftpSessions.sessionTotal", 1);
 }
 
-static void snmp_ssh2_scp_opened_ev(const void *event_data,
+static void snmp_ssh2_sftp_sess_closed_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SCP_SESS_F_SESS_COUNT, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "scp.scpSessions.sessionCount: %s", strerror(errno));
-  }
-
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SCP_SESS_F_SESS_TOTAL, 1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error incrementing SNMP database for "
-      "scp.scpSessions.sessionTotal: %s", strerror(errno));
-  }
+  ev_incr_value(SNMP_DB_SFTP_SESS_F_SESS_COUNT,
+    "sftp.sftpSessions.sessionCount", -1);
 }
 
-static void snmp_ssh2_scp_closed_ev(const void *event_data,
+static void snmp_ssh2_scp_sess_opened_ev(const void *event_data,
     void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
-  res = snmp_db_incr_value(session.pool, SNMP_DB_SCP_SESS_F_SESS_COUNT, -1);
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error decrementing SNMP database for "
-      "scp.scpSessions.sessionCount: %s", strerror(errno));
+  ev_incr_value(SNMP_DB_SCP_SESS_F_SESS_COUNT,
+    "scp.scpSessions.sessionCount", 1);
+  ev_incr_value(SNMP_DB_SCP_SESS_F_SESS_TOTAL,
+    "scp.scpSessions.sessionTotal", 1);
+}
+
+static void snmp_ssh2_scp_sess_closed_ev(const void *event_data,
+    void *user_data) {
+  if (snmp_engine == FALSE) {
+    return;
   }
+
+  ev_incr_value(SNMP_DB_SCP_SESS_F_SESS_COUNT,
+    "scp.scpSessions.sessionCount", -1);
 }
 
 /* XXX Do we want to support any Controls/ftpctl actions? */
@@ -3798,8 +3677,10 @@ static int snmp_sess_init(void) {
 
     pr_event_register(&snmp_module, "mod_sftp.ssh2.kex.failed",
       snmp_ssh2_kex_err_ev, NULL);
-    pr_event_register(&snmp_module, "mod_sftp.ssh2.compression",
-      snmp_ssh2_compress_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.client-compression",
+      snmp_ssh2_c2s_compress_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.ssh2.server-compression",
+      snmp_ssh2_s2c_compress_ev, NULL);
 
     pr_event_register(&snmp_module, "mod_sftp.ssh2.auth-hostbased",
       snmp_ssh2_auth_hostbased_ev, NULL);
@@ -3821,15 +3702,17 @@ static int snmp_sess_init(void) {
     pr_event_register(&snmp_module, "mod_sftp.ssh2.auth-publickey.failed",
       snmp_ssh2_auth_publickey_err_ev, NULL);
 
-    pr_event_register(&snmp_module, "mod_sftp.sftp.opened",
-      snmp_ssh2_sftp_opened_ev, NULL);
-    pr_event_register(&snmp_module, "mod_sftp.sftp.closed",
-      snmp_ssh2_sftp_closed_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.sftp.session-opened",
+      snmp_ssh2_sftp_sess_opened_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.sftp.session-closed",
+      snmp_ssh2_sftp_sess_closed_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.sftp.protocol-version",
+      snmp_ssh2_sftp_proto_version_ev, NULL);
 
-    pr_event_register(&snmp_module, "mod_sftp.scp.opened",
-      snmp_ssh2_scp_opened_ev, NULL);
-    pr_event_register(&snmp_module, "mod_sftp.scp.closed",
-      snmp_ssh2_scp_closed_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.scp.session-opened",
+      snmp_ssh2_scp_sess_opened_ev, NULL);
+    pr_event_register(&snmp_module, "mod_sftp.scp.session-closed",
+      snmp_ssh2_scp_sess_closed_ev, NULL);
   }
 
   /* Initial the MIBs. */

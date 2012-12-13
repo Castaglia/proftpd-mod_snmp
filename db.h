@@ -69,7 +69,7 @@ extern int snmp_table_ids[];
 #define SNMP_DB_DAEMON_F_CONN_REFUSED_TOTAL			108
 #define SNMP_DB_DAEMON_F_RESTART_COUNT				109
 #define SNMP_DB_DAEMON_F_SEGFAULT_COUNT				110
-#define SNMP_DB_DAEMON_F_MAXINST_COUNT				111
+#define SNMP_DB_DAEMON_F_MAXINST_TOTAL				111
 #define SNMP_DB_DAEMON_F_MAXINST_CONF				112
 
 /* ftp.sessions database fields */
@@ -137,7 +137,8 @@ extern int snmp_table_ids[];
 
 /* ssh.sshSessions database fields */
 #define SNMP_DB_SSH_SESS_F_KEX_ERR_TOTAL			400
-#define SNMP_DB_SSH_SESS_F_COMPRESS_TOTAL			401
+#define SNMP_DB_SSH_SESS_F_C2S_COMPRESS_TOTAL			401
+#define SNMP_DB_SSH_SESS_F_S2C_COMPRESS_TOTAL			402
 
 /* ssh.sshSessions.sshAuth database fields */
 #define SNMP_DB_SSH_LOGINS_F_HOSTBASED_TOTAL			450
