@@ -642,6 +642,7 @@ struct snmp_mib {
   unsigned int mib_oidlen;
   unsigned int db_field;
   int mib_enabled;
+  int notify_only;
   const char *mib_name;
   const char *instance_name;
   unsigned char smi_type;
