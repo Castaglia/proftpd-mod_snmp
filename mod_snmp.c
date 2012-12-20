@@ -611,10 +611,11 @@ static int snmp_agent_handle_get(struct snmp_packet *pkt) {
       &lacks_instance_id);
     if (mib == NULL) {
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "%s %s of unknown OID %s", snmp_msg_get_versionstr(pkt->snmp_version),
+        "%s %s of unknown OID %s (lacks instance ID = %s)",
+        snmp_msg_get_versionstr(pkt->snmp_version),
         snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
         snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
-          iter_var->namelen));
+          iter_var->namelen), lacks_instance_id ? "true" : "false");
 
       /* If SNMPv1, then set the err_code/err_idx values, and duplicate the
        * varlist.
@@ -729,11 +730,11 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
       int unknown_oid = FALSE;
 
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "%s %s of unknown OID %s",
+        "%s %s of unknown OID %s (lacks instance ID = %s)",
         snmp_msg_get_versionstr(pkt->snmp_version),
         snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
         snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
-          iter_var->namelen));
+          iter_var->namelen), lacks_instance_id ? "true" : "false");
 
       if (lacks_instance_id) {
         oid_t *oid;
@@ -844,8 +845,23 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
     }
 
     if (resp_var == NULL) {
-      /* Get the next MIB in the list. */
-      mib = snmp_mib_get_by_idx(mib_idx + 1);
+      unsigned int k = 1;
+
+      /* Get the next MIB in the list.  Note that we may need to continue
+       * looking for a short while, as some arcs are for notifications only.
+       */
+      mib = snmp_mib_get_by_idx(mib_idx + k);
+      while (mib->mib_enabled == FALSE ||
+             mib->notify_only == TRUE) {
+        pr_signals_handle();
+
+        if ((mib_idx + k) >= max_idx) {
+          break;
+        }
+
+        k++;
+        mib = snmp_mib_get_by_idx(mib_idx + k);
+      }
 
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
         "%s %s of OID %s (%s)", snmp_msg_get_versionstr(pkt->snmp_version),
@@ -949,11 +965,11 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
       int unknown_oid = FALSE;
 
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "%s %s of unknown OID %s",
+        "%s %s of unknown OID %s (lacks instance ID = %s)",
         snmp_msg_get_versionstr(pkt->snmp_version),
         snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
         snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
-          iter_var->namelen));
+          iter_var->namelen), lacks_instance_id ? "true" : "false");
 
       if (lacks_instance_id) {
         oid_t *oid;
@@ -1067,11 +1083,11 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
       int unknown_oid = FALSE;
 
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-        "%s %s of unknown OID %s",
+        "%s %s of unknown OID %s (lacks instance ID = %s)",
         snmp_msg_get_versionstr(pkt->snmp_version),
         snmp_pdu_get_request_type_desc(pkt->req_pdu->request_type),
         snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
-          iter_var->namelen));
+          iter_var->namelen), lacks_instance_id ? "true" : "false");
 
       if (lacks_instance_id) {
         oid_t *oid;
@@ -2949,8 +2965,14 @@ MODRET snmp_log_auth(cmd_rec *cmd) {
 static void ev_incr_value(unsigned int field_id, const char *field_str,
     int32_t incr) {
   int res;
-  
-  res = snmp_db_incr_value(session.pool, field_id, incr);
+  pool *p;
+
+  p = session.pool;
+  if (p == NULL) {
+    p = snmp_pool;
+  }
+ 
+  res = snmp_db_incr_value(p, field_id, incr);
   if (res < 0) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error %s SNMP database for %s: %s",
@@ -3227,6 +3249,9 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
       return;
     }
   }
+
+  /* Initial the MIBs. */
+  snmp_mib_init();
 
   /* Iterate through the server_list, and count up the number of vhosts. */
   for (s = (server_rec *) server_list->xas_list; s; s = s->next) {
@@ -3714,9 +3739,6 @@ static int snmp_sess_init(void) {
     pr_event_register(&snmp_module, "mod_sftp.scp.session-closed",
       snmp_ssh2_scp_sess_closed_ev, NULL);
   }
-
-  /* Initial the MIBs. */
-  snmp_mib_init();
 
   res = snmp_db_incr_value(session.pool, SNMP_DB_DAEMON_F_CONN_COUNT, 1);
   if (res < 0) {
