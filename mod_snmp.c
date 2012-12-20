@@ -717,7 +717,7 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
   for (iter_var = pkt->req_pdu->varlist; iter_var; iter_var = iter_var->next) { 
     struct snmp_mib *mib = NULL;
     struct snmp_var *resp_var = NULL;
-    int mib_idx = -1, lacks_instance_id = FALSE;
+    int mib_idx = -1, next_idx = -1, lacks_instance_id = FALSE;
     int32_t mib_int = -1;
     char *mib_str = NULL;
     size_t mib_strlen = 0;
@@ -808,7 +808,25 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
       snmp_asn1_get_oidstr(pkt->req_pdu->pool, iter_var->name,
         iter_var->namelen), mib_idx, max_idx);
 
-    if (mib_idx >= max_idx) {
+    next_idx = mib_idx + 1;
+
+    /* Get the next MIB in the list.  Note that we may need to continue
+     * looking for a short while, as some arcs are for notifications only.
+     */
+    mib = snmp_mib_get_by_idx(next_idx);
+    while (mib->mib_enabled == FALSE ||
+           mib->notify_only == TRUE) {
+      pr_signals_handle();
+
+      if (next_idx >= max_idx) {
+        break;
+      }
+
+      mib = snmp_mib_get_by_idx(++next_idx);
+    }
+
+    if (mib_idx >= max_idx ||
+        next_idx >= max_idx) {
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
         "%s %s of last OID %s",
         snmp_msg_get_versionstr(pkt->snmp_version),
@@ -845,23 +863,8 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
     }
 
     if (resp_var == NULL) {
-      unsigned int k = 1;
-
-      /* Get the next MIB in the list.  Note that we may need to continue
-       * looking for a short while, as some arcs are for notifications only.
-       */
-      mib = snmp_mib_get_by_idx(mib_idx + k);
-      while (mib->mib_enabled == FALSE ||
-             mib->notify_only == TRUE) {
-        pr_signals_handle();
-
-        if ((mib_idx + k) >= max_idx) {
-          break;
-        }
-
-        k++;
-        mib = snmp_mib_get_by_idx(mib_idx + k);
-      }
+      /* Get the next MIB in the list. */
+      mib = snmp_mib_get_by_idx(next_idx);
 
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
         "%s %s of OID %s (%s)", snmp_msg_get_versionstr(pkt->snmp_version),
