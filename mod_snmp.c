@@ -1529,6 +1529,9 @@ static pid_t snmp_agent_start(const char *tables_dir, int agent_type,
   /* Reset the cached PID, so that it is correctly reflected in the logs. */
   session.pid = getpid();
 
+  pr_trace_msg("snmp", 3, "forked SNMP agent PID %lu",
+    (unsigned long) session.pid);
+
   snmp_daemonize(tables_dir);
 
   /* Install our own signal handlers (mostly to ignore signals) */
@@ -1605,6 +1608,8 @@ static pid_t snmp_agent_start(const char *tables_dir, int agent_type,
   snmp_agent_loop(agent_fd, agent_addr);
 
   /* When we are done, we simply exit. */;
+  pr_trace_msg("snmp", 3, "SNMP agent PID %lu exiting",
+    (unsigned long) session.pid);
   exit(0);
 }
 
@@ -1616,6 +1621,8 @@ static void snmp_agent_stop(pid_t agent_pid) {
     /* Nothing to do. */
     return;
   }
+
+  pr_trace_msg("snmp", 3, "stopping agent PID %lu", (unsigned long) agent_pid);
 
   /* Litmus test: is the SNMP agent process still around?  If not, there's
    * nothing for us to do.
@@ -3161,9 +3168,6 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  /* If the agent process is already running, stop it. */
-  snmp_agent_stop(snmp_agent_pid);
-
   snmp_openlog();
 
   c = find_config(main_server->conf, CONF_PARAM, "SNMPCommunity", FALSE);
@@ -3310,6 +3314,8 @@ static void snmp_restart_ev(const void *event_data, void *user_data) {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "error resetting SNMP database counters: %s", strerror(errno));
   }
+
+  snmp_agent_stop(snmp_agent_pid);
 
   /* Close the SNMPLog file descriptor; it will be reopened in the
    * postparse event listener.
