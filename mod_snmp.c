@@ -810,23 +810,25 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
 
     next_idx = mib_idx + 1;
 
-    /* Get the next MIB in the list.  Note that we may need to continue
-     * looking for a short while, as some arcs are for notifications only.
-     */
-    mib = snmp_mib_get_by_idx(next_idx);
-    while (mib->mib_enabled == FALSE ||
-           mib->notify_only == TRUE) {
-      pr_signals_handle();
+    if (next_idx < max_idx) {
+      /* Get the next MIB in the list.  Note that we may need to continue
+       * looking for a short while, as some arcs are for notifications only.
+       */
+      mib = snmp_mib_get_by_idx(next_idx);
+      while (mib->mib_enabled == FALSE ||
+             mib->notify_only == TRUE) {
+        pr_signals_handle();
 
-      if (next_idx >= max_idx) {
-        break;
+        if (next_idx > max_idx) {
+          break;
+        }
+
+        mib = snmp_mib_get_by_idx(++next_idx);
       }
-
-      mib = snmp_mib_get_by_idx(++next_idx);
     }
 
     if (mib_idx >= max_idx ||
-        next_idx >= max_idx) {
+        next_idx > max_idx) {
       (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
         "%s %s of last OID %s",
         snmp_msg_get_versionstr(pkt->snmp_version),
