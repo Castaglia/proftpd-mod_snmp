@@ -201,6 +201,35 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "daemon.daemonNotifications.maxInstancesExceeded.0",
     SNMP_SMI_NULL },
 
+  /* timeouts MIBs */
+  { { SNMP_MIB_TIMEOUTS_OID_IDLE_TOTAL, 0 },
+    SNMP_MIB_TIMEOUTS_OIDLEN_IDLE_TOTAL + 1,
+    SNMP_DB_TIMEOUTS_F_IDLE_TOTAL, TRUE, FALSE,
+    SNMP_MIB_NAME_PREFIX "timeouts.idleTimeoutTotal",
+    SNMP_MIB_NAME_PREFIX "timeouts.idleTimeoutTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_TIMEOUTS_OID_LOGIN_TOTAL, 0 },
+    SNMP_MIB_TIMEOUTS_OIDLEN_LOGIN_TOTAL + 1,
+    SNMP_DB_TIMEOUTS_F_LOGIN_TOTAL, TRUE, FALSE,
+    SNMP_MIB_NAME_PREFIX "timeouts.loginTimeoutTotal",
+    SNMP_MIB_NAME_PREFIX "timeouts.loginTimeoutTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_TIMEOUTS_OID_NOXFER_TOTAL, 0 },
+    SNMP_MIB_TIMEOUTS_OIDLEN_NOXFER_TOTAL + 1,
+    SNMP_DB_TIMEOUTS_F_NOXFER_TOTAL, TRUE, FALSE,
+    SNMP_MIB_NAME_PREFIX "timeouts.noTransferTimeoutTotal",
+    SNMP_MIB_NAME_PREFIX "timeouts.noTransferTimeoutTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_TIMEOUTS_OID_STALLED_TOTAL, 0 },
+    SNMP_MIB_TIMEOUTS_OIDLEN_STALLED_TOTAL + 1,
+    SNMP_DB_TIMEOUTS_F_STALLED_TOTAL, TRUE, FALSE,
+    SNMP_MIB_NAME_PREFIX "timeouts.stalledTimeoutTotal",
+    SNMP_MIB_NAME_PREFIX "timeouts.stalledTimeoutTotal.0",
+    SNMP_SMI_COUNTER32 },
+
   /* ftp.sessions MIBs */
   { { SNMP_MIB_FTP_SESS_OID_SESS_COUNT, 0 },
     SNMP_MIB_FTP_SESS_OIDLEN_SESS_COUNT + 1,
@@ -349,35 +378,6 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_DB_FTP_XFERS_F_KB_DOWNLOAD_TOTAL, TRUE, FALSE,
     SNMP_MIB_NAME_PREFIX "ftp.dataTransfers.kbDownloadTotal",
     SNMP_MIB_NAME_PREFIX "ftp.dataTransfers.kbDownloadTotal.0",
-    SNMP_SMI_COUNTER32 },
-
-  /* ftp.timeouts MIBs */
-  { { SNMP_MIB_FTP_TIMEOUTS_OID_IDLE_TOTAL, 0 },
-    SNMP_MIB_FTP_TIMEOUTS_OIDLEN_IDLE_TOTAL + 1,
-    SNMP_DB_FTP_TIMEOUTS_F_IDLE_TOTAL, TRUE, FALSE,
-    SNMP_MIB_NAME_PREFIX "ftp.timeouts.idleTimeoutTotal",
-    SNMP_MIB_NAME_PREFIX "ftp.timeouts.idleTimeoutTotal.0",
-    SNMP_SMI_COUNTER32 },
-
-  { { SNMP_MIB_FTP_TIMEOUTS_OID_LOGIN_TOTAL, 0 },
-    SNMP_MIB_FTP_TIMEOUTS_OIDLEN_LOGIN_TOTAL + 1,
-    SNMP_DB_FTP_TIMEOUTS_F_LOGIN_TOTAL, TRUE, FALSE,
-    SNMP_MIB_NAME_PREFIX "ftp.timeouts.loginTimeoutTotal",
-    SNMP_MIB_NAME_PREFIX "ftp.timeouts.loginTimeoutTotal.0",
-    SNMP_SMI_COUNTER32 },
-
-  { { SNMP_MIB_FTP_TIMEOUTS_OID_NOXFER_TOTAL, 0 },
-    SNMP_MIB_FTP_TIMEOUTS_OIDLEN_NOXFER_TOTAL + 1,
-    SNMP_DB_FTP_TIMEOUTS_F_NOXFER_TOTAL, TRUE, FALSE,
-    SNMP_MIB_NAME_PREFIX "ftp.timeouts.noTransferTimeoutTotal",
-    SNMP_MIB_NAME_PREFIX "ftp.timeouts.noTransferTimeoutTotal.0",
-    SNMP_SMI_COUNTER32 },
-
-  { { SNMP_MIB_FTP_TIMEOUTS_OID_STALLED_TOTAL, 0 },
-    SNMP_MIB_FTP_TIMEOUTS_OIDLEN_STALLED_TOTAL + 1,
-    SNMP_DB_FTP_TIMEOUTS_F_STALLED_TOTAL, TRUE, FALSE,
-    SNMP_MIB_NAME_PREFIX "ftp.timeouts.stalledTimeoutTotal",
-    SNMP_MIB_NAME_PREFIX "ftp.timeouts.stalledTimeoutTotal.0",
     SNMP_SMI_COUNTER32 },
 
   /* ftp.ftpNotifications MIBs */

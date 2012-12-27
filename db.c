@@ -42,6 +42,7 @@
  */
 int snmp_table_ids[] = {
   SNMP_DB_ID_DAEMON,
+  SNMP_DB_ID_TIMEOUTS,
   SNMP_DB_ID_FTP,
   SNMP_DB_ID_SNMP,
   SNMP_DB_ID_TLS,
@@ -120,6 +121,16 @@ static struct snmp_field_info snmp_fields[] = {
   { SNMP_DB_DAEMON_F_MAXINST_CONF, SNMP_DB_ID_DAEMON, 28,
     sizeof(uint32_t), "DAEMON_F_MAXINST_CONF" },
 
+  /* timeouts fields */
+  { SNMP_DB_TIMEOUTS_F_IDLE_TOTAL, SNMP_DB_ID_TIMEOUTS, 0,
+    sizeof(uint32_t), "TIMEOUTS_F_IDLE_TOTAL" },
+  { SNMP_DB_TIMEOUTS_F_LOGIN_TOTAL, SNMP_DB_ID_TIMEOUTS, 4,
+    sizeof(uint32_t), "TIMEOUTS_F_LOGIN_TOTAL" },
+  { SNMP_DB_TIMEOUTS_F_NOXFER_TOTAL, SNMP_DB_ID_TIMEOUTS, 8,
+    sizeof(uint32_t), "TIMEOUTS_F_NOXFER_TOTAL" },
+  { SNMP_DB_TIMEOUTS_F_STALLED_TOTAL, SNMP_DB_ID_TIMEOUTS, 12,
+    sizeof(uint32_t), "TIMEOUTS_F_STALLED_TOTAL" },
+
   /* ftp.sessions fields */
   { SNMP_DB_FTP_SESS_F_SESS_COUNT, SNMP_DB_ID_FTP, 0,
     sizeof(uint32_t), "FTP_SESS_F_SESS_COUNT" },
@@ -167,16 +178,6 @@ static struct snmp_field_info snmp_fields[] = {
     sizeof(uint32_t), "FTP_XFERS_F_KB_UPLOAD_TOTAL" },
   { SNMP_DB_FTP_XFERS_F_KB_DOWNLOAD_TOTAL, SNMP_DB_ID_FTP, 80,
     sizeof(uint32_t), "FTP_XFERS_F_KB_DOWNLOAD_TOTAL" },
-
-  /* ftp.timeouts fields */
-  { SNMP_DB_FTP_TIMEOUTS_F_IDLE_TOTAL, SNMP_DB_ID_FTP, 84,
-    sizeof(uint32_t), "FTP_TIMEOUTS_F_IDLE_TOTAL" },
-  { SNMP_DB_FTP_TIMEOUTS_F_LOGIN_TOTAL, SNMP_DB_ID_FTP, 88,
-    sizeof(uint32_t), "FTP_TIMEOUTS_F_LOGIN_TOTAL" },
-  { SNMP_DB_FTP_TIMEOUTS_F_NOXFER_TOTAL, SNMP_DB_ID_FTP, 92,
-    sizeof(uint32_t), "FTP_TIMEOUTS_F_NOXFER_TOTAL" },
-  { SNMP_DB_FTP_TIMEOUTS_F_STALLED_TOTAL, SNMP_DB_ID_FTP, 96,
-    sizeof(uint32_t), "FTP_TIMEOUTS_F_STALLED_TOTAL" },
 
   /* snmp fields */
   { SNMP_DB_SNMP_F_PKTS_RECVD_TOTAL, SNMP_DB_ID_SNMP, 0,
@@ -344,16 +345,23 @@ static struct snmp_db_info snmp_dbs[] = {
   /* Eight numeric fields only in this table: 8 x 4 bytes = 32 bytes */
   { SNMP_DB_ID_DAEMON, -1, "daemon.dat", NULL, NULL, 32 },
 
+  /* The size of the timeouts table is calculated as:
+   *
+   *  4 timeout fields        x 4 bytes = 16 bytes
+   *
+   * for a total of 16 bytes.
+   */
+  { SNMP_DB_ID_TIMEOUTS, -1, "timeouts.dat", NULL, NULL, 16 },
+ 
   /* The size of the ftp table is calculated as:
    *
    *  3 session fields        x 4 bytes = 12 bytes
    *  7 login fields          x 4 bytes = 28 bytes
    *  11 data transfer fields x 4 bytes = 44 bytes
-   *  4 timeout fields        x 4 bytes = 16 bytes
    *
-   * for a total of 100 bytes.
+   * for a total of 84 bytes.
    */
-  { SNMP_DB_ID_FTP, -1, "ftp.dat", NULL, NULL, 100 },
+  { SNMP_DB_ID_FTP, -1, "ftp.dat", NULL, NULL, 84 },
 
   /* The size of the snmp table is calculated as:
    *

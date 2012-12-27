@@ -37,29 +37,30 @@ snmpModule MODULE-IDENTITY
         daemon                   OBJECT IDENTIFIER ::= { snmpModule 1 }
         daemonNotifications      OBJECT IDENTIFIER ::= { daemon 13 }
 
-        ftp                      OBJECT IDENTIFIER ::= { snmpModule 2 }
+        timeouts                 OBJECT IDENTIFIER ::= { snmpModule 2 }
+
+        ftp                      OBJECT IDENTIFIER ::= { snmpModule 3 }
         sessions                 OBJECT IDENTIFIER ::= { ftp 1 }
         logins                   OBJECT IDENTIFIER ::= { ftp 2 }
         dataTransfers            OBJECT IDENTIFIER ::= { ftp 3 }
-        timeouts                 OBJECT IDENTIFIER ::= { ftp 4 }
-        ftpNotifications         OBJECT IDENTIFIER ::= { ftp 5 }
+        ftpNotifications         OBJECT IDENTIFIER ::= { ftp 4 }
 
-        snmp                     OBJECT IDENTIFIER ::= { snmpModule 3 }
+        snmp                     OBJECT IDENTIFIER ::= { snmpModule 4 }
 
-        ftps                     OBJECT IDENTIFIER ::= { snmpModule 4 }
+        ftps                     OBJECT IDENTIFIER ::= { snmpModule 5 }
         tlsSessions              OBJECT IDENTIFIER ::= { ftps 1 }
         tlsLogins                OBJECT IDENTIFIER ::= { ftps 2 }
         tlsDataTransfers         OBJECT IDENTIFIER ::= { ftps 3 }
 
-        ssh                      OBJECT IDENTIFIER ::= { snmpModule 5 }
+        ssh                      OBJECT IDENTIFIER ::= { snmpModule 6 }
         sshSessions              OBJECT IDENTIFIER ::= { ssh 1 }
         sshLogins                OBJECT IDENTIFIER ::= { ssh 2 }
 
-        sftp                     OBJECT IDENTIFIER ::= { snmpModule 6 }
+        sftp                     OBJECT IDENTIFIER ::= { snmpModule 7 }
         sftpSessions             OBJECT IDENTIFIER ::= { sftp 1 }
         sftpDataTransfers        OBJECT IDENTIFIER ::= { sftp 2 }
 
-        scp                      OBJECT IDENTIFIER ::= { snmpModule 7 }
+        scp                      OBJECT IDENTIFIER ::= { snmpModule 8 }
         scpSessions              OBJECT IDENTIFIER ::= { scp 1 }
         scpDataTransfers         OBJECT IDENTIFIER ::= { scp 2 }
 

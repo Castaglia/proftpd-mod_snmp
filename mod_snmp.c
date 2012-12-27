@@ -815,8 +815,9 @@ static int snmp_agent_handle_getnext(struct snmp_packet *pkt) {
        * looking for a short while, as some arcs are for notifications only.
        */
       mib = snmp_mib_get_by_idx(next_idx);
-      while (mib->mib_enabled == FALSE ||
-             mib->notify_only == TRUE) {
+      while (mib != NULL &&
+             (mib->mib_enabled == FALSE ||
+              mib->notify_only == TRUE)) {
         pr_signals_handle();
 
         if (next_idx > max_idx) {
@@ -1158,10 +1159,28 @@ static int snmp_agent_handle_getbulk(struct snmp_packet *pkt) {
         struct snmp_mib *prev_mib = NULL;
 
         for (j = 1; j <= pkt->req_pdu->max_repetitions; j++) {
+          int next_idx;
+
           pr_signals_handle();
 
           /* Get the next MIB in the list. */
-          mib = snmp_mib_get_by_idx(mib_idx + j);
+          next_idx = mib_idx + j;
+          if (next_idx < max_idx) {
+            mib = snmp_mib_get_by_idx(next_idx);
+            while (mib != NULL &&
+                   (mib->mib_enabled == FALSE ||
+                    mib->notify_only == TRUE)) {
+              pr_signals_handle();
+
+              if (next_idx > max_idx) {
+                break;
+              }
+
+              mib = snmp_mib_get_by_idx(++next_idx);
+            }
+          }
+
+          mib = snmp_mib_get_by_idx(next_idx);
           if (mib != NULL) {
             (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
               "%s %s of OID %s (%s)",
@@ -3363,8 +3382,8 @@ static void snmp_timeout_idle_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  ev_incr_value(SNMP_DB_FTP_TIMEOUTS_F_IDLE_TOTAL,
-    "ftp.timeouts.idleTimeoutTotal", 1);
+  ev_incr_value(SNMP_DB_TIMEOUTS_F_IDLE_TOTAL,
+    "timeouts.idleTimeoutTotal", 1);
 }
 
 static void snmp_timeout_login_ev(const void *event_data, void *user_data) {
@@ -3372,8 +3391,8 @@ static void snmp_timeout_login_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  ev_incr_value(SNMP_DB_FTP_TIMEOUTS_F_LOGIN_TOTAL,
-    "ftp.timeouts.loginTimeoutTotal", 1);
+  ev_incr_value(SNMP_DB_TIMEOUTS_F_LOGIN_TOTAL,
+    "timeouts.loginTimeoutTotal", 1);
 }
 
 static void snmp_timeout_noxfer_ev(const void *event_data, void *user_data) {
@@ -3381,8 +3400,8 @@ static void snmp_timeout_noxfer_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  ev_incr_value(SNMP_DB_FTP_TIMEOUTS_F_NOXFER_TOTAL,
-    "ftp.timeouts.noTransferTimeoutTotal", 1);
+  ev_incr_value(SNMP_DB_TIMEOUTS_F_NOXFER_TOTAL,
+    "timeouts.noTransferTimeoutTotal", 1);
 }
 
 static void snmp_timeout_stalled_ev(const void *event_data, void *user_data) {
@@ -3390,8 +3409,8 @@ static void snmp_timeout_stalled_ev(const void *event_data, void *user_data) {
     return;
   }
 
-  ev_incr_value(SNMP_DB_FTP_TIMEOUTS_F_STALLED_TOTAL,
-    "ftp.timeouts.stalledTimeoutTotal", 1);
+  ev_incr_value(SNMP_DB_TIMEOUTS_F_STALLED_TOTAL,
+    "timeouts.stalledTimeoutTotal", 1);
 }
 
 /* mod_tls-generated events */

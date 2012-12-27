@@ -386,9 +386,42 @@ contains the ProFTPD versions where the OID is present.
     <td>&nbsp;Total number of times <code>MaxInstances</code> reached&nbsp;</td>
   </tr>
 
+  <!-- timeouts arc -->
+  <tr>
+    <td>&nbsp;*.2.1.0&nbsp;</td>
+    <td>&nbsp;timeouts.idleTimeoutTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of times <code>TimeoutIdle</code> was reached&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.2.0&nbsp;</td>
+    <td>&nbsp;timeouts.loginTimeoutTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of times <code>TimeoutLogin</code> was reached&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.3.0&nbsp;</td>
+    <td>&nbsp;timeouts.noTransferTimeoutTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of times <code>TimeoutNoTransfer</code> was reached&nbsp;</td>
+  </tr>
+
+  <tr>
+    <td>&nbsp;*.2.4.0&nbsp;</td>
+    <td>&nbsp;timeouts.stalledTimeoutTotal&nbsp;</td>
+    <td>&nbsp;Counter32&nbsp;</td>
+    <td>&nbsp;1.3.4rc3+&nbsp;</td>
+    <td>&nbsp;Total number of times <code>TimeoutStalled</code> was reached&nbsp;</td>
+  </tr>
+
   <!-- ftp.sessions arc -->
   <tr>
-    <td>&nbsp;*.2.1.1.0&nbsp;</td>
+    <td>&nbsp;*.3.1.1.0&nbsp;</td>
     <td>&nbsp;ftp.sessions.sessionCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -396,7 +429,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.1.2.0&nbsp;</td>
+    <td>&nbsp;*.3.1.2.0&nbsp;</td>
     <td>&nbsp;ftp.sessions.sessionTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -404,7 +437,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.1.3.0&nbsp;</td>
+    <td>&nbsp;*.3.1.3.0&nbsp;</td>
     <td>&nbsp;ftp.sessions.commandInvalidTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -413,7 +446,7 @@ contains the ProFTPD versions where the OID is present.
 
   <!-- ftp.logins arc -->
   <tr>
-    <td>&nbsp;*.2.2.1.0&nbsp;</td>
+    <td>&nbsp;*.3.2.1.0&nbsp;</td>
     <td>&nbsp;ftp.logins.loginTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -421,7 +454,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.2.2.0&nbsp;</td>
+    <td>&nbsp;*.3.2.2.0&nbsp;</td>
     <td>&nbsp;ftp.logins.loginFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -429,7 +462,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.2.3.0&nbsp;</td>
+    <td>&nbsp;*.3.2.3.0&nbsp;</td>
     <td>&nbsp;ftp.logins.loginBadUserTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -437,7 +470,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.2.4.0&nbsp;</td>
+    <td>&nbsp;*.3.2.4.0&nbsp;</td>
     <td>&nbsp;ftp.logins.loginBadPasswordTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -445,7 +478,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.2.5.0&nbsp;</td>
+    <td>&nbsp;*.3.2.5.0&nbsp;</td>
     <td>&nbsp;ftp.logins.loginGeneralErrorTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -453,7 +486,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.2.6.0&nbsp;</td>
+    <td>&nbsp;*.3.2.6.0&nbsp;</td>
     <td>&nbsp;ftp.logins.anonLoginCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -461,7 +494,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.2.7.0&nbsp;</td>
+    <td>&nbsp;*.3.2.7.0&nbsp;</td>
     <td>&nbsp;ftp.logins.anonLoginTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -470,7 +503,7 @@ contains the ProFTPD versions where the OID is present.
 
   <!-- ftp.dataTransfers arc -->
   <tr>
-    <td>&nbsp;*.2.3.1.0&nbsp;</td>
+    <td>&nbsp;*.3.3.1.0&nbsp;</td>
     <td>&nbsp;ftp.dataTransfers.dirListCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -478,7 +511,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.3.2.0&nbsp;</td>
+    <td>&nbsp;*.3.3.2.0&nbsp;</td>
     <td>&nbsp;ftp.dataTransfers.dirListTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -486,7 +519,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.3.3.0&nbsp;</td>
+    <td>&nbsp;*.3.3.3.0&nbsp;</td>
     <td>&nbsp;ftp.dataTransfers.dirListFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -494,7 +527,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.3.4.0&nbsp;</td>
+    <td>&nbsp;*.3.3.4.0&nbsp;</td>
     <td>&nbsp;ftp.dataTransfers.fileUploadCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -502,7 +535,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.3.5.0&nbsp;</td>
+    <td>&nbsp;*.3.3.5.0&nbsp;</td>
     <td>&nbsp;ftp.dataTransfers.fileUploadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -510,7 +543,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.3.6.0&nbsp;</td>
+    <td>&nbsp;*.3.3.6.0&nbsp;</td>
     <td>&nbsp;ftp.dataTransfers.fileUploadFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -518,7 +551,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.3.7.0&nbsp;</td>
+    <td>&nbsp;*.3.3.7.0&nbsp;</td>
     <td>&nbsp;ftp.dataTransfers.fileDownloadCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -526,7 +559,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.3.8.0&nbsp;</td>
+    <td>&nbsp;*.3.3.8.0&nbsp;</td>
     <td>&nbsp;ftp.dataTransfers.fileDownloadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -534,7 +567,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.3.9.0&nbsp;</td>
+    <td>&nbsp;*.3.3.9.0&nbsp;</td>
     <td>&nbsp;ftp.dataTransfers.fileDownloadFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -542,7 +575,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.3.10.0&nbsp;</td>
+    <td>&nbsp;*.3.3.10.0&nbsp;</td>
     <td>&nbsp;ftp.dataTransfers.kbUploadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -550,49 +583,16 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.2.3.11.0&nbsp;</td>
+    <td>&nbsp;*.3.3.11.0&nbsp;</td>
     <td>&nbsp;ftp.dataTransfers.kbDownloadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
     <td>&nbsp;Total number of KB downloaded via FTP&nbsp;</td>
   </tr>
 
-  <!-- ftp.timeouts arc -->
-  <tr>
-    <td>&nbsp;*.2.4.1.0&nbsp;</td>
-    <td>&nbsp;ftp.timeouts.idleTimeoutTotal&nbsp;</td>
-    <td>&nbsp;Counter32&nbsp;</td>
-    <td>&nbsp;1.3.4rc3+&nbsp;</td>
-    <td>&nbsp;Total number of times TimeoutIdle was reached&nbsp;</td>
-  </tr>
-
-  <tr>
-    <td>&nbsp;*.2.4.2.0&nbsp;</td>
-    <td>&nbsp;ftp.timeouts.loginTimeoutTotal&nbsp;</td>
-    <td>&nbsp;Counter32&nbsp;</td>
-    <td>&nbsp;1.3.4rc3+&nbsp;</td>
-    <td>&nbsp;Total number of times TimeoutLogin was reached&nbsp;</td>
-  </tr>
-
-  <tr>
-    <td>&nbsp;*.2.4.3.0&nbsp;</td>
-    <td>&nbsp;ftp.timeouts.noTransferTimeoutTotal&nbsp;</td>
-    <td>&nbsp;Counter32&nbsp;</td>
-    <td>&nbsp;1.3.4rc3+&nbsp;</td>
-    <td>&nbsp;Total number of times TimeoutNoTransfer was reached&nbsp;</td>
-  </tr>
-
-  <tr>
-    <td>&nbsp;*.2.4.4.0&nbsp;</td>
-    <td>&nbsp;ftp.timeouts.stalledTimeoutTotal&nbsp;</td>
-    <td>&nbsp;Counter32&nbsp;</td>
-    <td>&nbsp;1.3.4rc3+&nbsp;</td>
-    <td>&nbsp;Total number of times TimeoutStalled was reached&nbsp;</td>
-  </tr>
-
   <!-- snmp arc -->
   <tr>
-    <td>&nbsp;*.3.1.0&nbsp;</td>
+    <td>&nbsp;*.4.1.0&nbsp;</td>
     <td>&nbsp;snmp.packetsReceivedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -600,7 +600,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.3.2.0&nbsp;</td>
+    <td>&nbsp;*.4.2.0&nbsp;</td>
     <td>&nbsp;snmp.packetsSentTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -608,7 +608,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.3.3.0&nbsp;</td>
+    <td>&nbsp;*.4.3.0&nbsp;</td>
     <td>&nbsp;snmp.trapsSentTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -616,7 +616,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.3.4.0&nbsp;</td>
+    <td>&nbsp;*.4.4.0&nbsp;</td>
     <td>&nbsp;snmp.packetsAuthFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -624,7 +624,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.3.5.0&nbsp;</td>
+    <td>&nbsp;*.4.5.0&nbsp;</td>
     <td>&nbsp;snmp.packetsDroppedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -633,7 +633,7 @@ contains the ProFTPD versions where the OID is present.
 
   <!-- ftps.tlsSessions arc -->
   <tr>
-    <td>&nbsp;*.4.1.1.0&nbsp;</td>
+    <td>&nbsp;*.5.1.1.0&nbsp;</td>
     <td>&nbsp;ftps.tlsSessions.sessionCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -641,7 +641,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.1.2.0&nbsp;</td>
+    <td>&nbsp;*.5.1.2.0&nbsp;</td>
     <td>&nbsp;ftps.tlsSessions.sessionTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -649,7 +649,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.1.3.0&nbsp;</td>
+    <td>&nbsp;*.5.1.3.0&nbsp;</td>
     <td>&nbsp;ftps.tlsSessions.ctrlHandshakeFailureTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.5rc1+&nbsp;</td>
@@ -657,7 +657,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.1.4.0&nbsp;</td>
+    <td>&nbsp;*.5.1.4.0&nbsp;</td>
     <td>&nbsp;ftps.tlsSessions.dataHandshakeFailureTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.5rc1+&nbsp;</td>
@@ -666,7 +666,7 @@ contains the ProFTPD versions where the OID is present.
 
   <!-- ftps.tlsLogins -->
   <tr>
-    <td>&nbsp;*.4.2.1.0&nbsp;</td>
+    <td>&nbsp;*.5.2.1.0&nbsp;</td>
     <td>&nbsp;ftps.tlsLogins.loginTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -674,7 +674,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.2.2.0&nbsp;</td>
+    <td>&nbsp;*.5.2.2.0&nbsp;</td>
     <td>&nbsp;ftps.tlsLogins.loginFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -683,7 +683,7 @@ contains the ProFTPD versions where the OID is present.
 
   <!-- ftps.tlsDataTransfers -->
   <tr>
-    <td>&nbsp;*.4.3.1.0&nbsp;</td>
+    <td>&nbsp;*.5.3.1.0&nbsp;</td>
     <td>&nbsp;ftps.tlsDataTransfers.dirListCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -691,7 +691,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.3.2.0&nbsp;</td>
+    <td>&nbsp;*.5.3.2.0&nbsp;</td>
     <td>&nbsp;ftps.tlsDataTransfers.dirListTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -699,7 +699,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.3.3.0&nbsp;</td>
+    <td>&nbsp;*.5.3.3.0&nbsp;</td>
     <td>&nbsp;ftps.tlsDataTransfers.dirListFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -707,7 +707,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.3.4.0&nbsp;</td>
+    <td>&nbsp;*.5.3.4.0&nbsp;</td>
     <td>&nbsp;ftps.tlsDataTransfers.fileUploadCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -715,7 +715,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.3.5.0&nbsp;</td>
+    <td>&nbsp;*.5.3.5.0&nbsp;</td>
     <td>&nbsp;ftps.tlsDataTransfers.fileUploadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -723,7 +723,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.3.6.0&nbsp;</td>
+    <td>&nbsp;*.5.3.6.0&nbsp;</td>
     <td>&nbsp;ftps.tlsDataTransfers.fileUploadFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -731,7 +731,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.3.7.0&nbsp;</td>
+    <td>&nbsp;*.5.3.7.0&nbsp;</td>
     <td>&nbsp;ftps.tlsDataTransfers.fileDownloadCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -739,7 +739,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.3.8.0&nbsp;</td>
+    <td>&nbsp;*.5.3.8.0&nbsp;</td>
     <td>&nbsp;ftps.tlsDataTransfers.fileDownloadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -747,7 +747,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.3.9.0&nbsp;</td>
+    <td>&nbsp;*.5.3.9.0&nbsp;</td>
     <td>&nbsp;ftps.tlsDataTransfers.fileDownloadFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -755,7 +755,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.3.10.0&nbsp;</td>
+    <td>&nbsp;*.5.3.10.0&nbsp;</td>
     <td>&nbsp;ftps.tlsDataTransfers.kbUploadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -763,7 +763,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.4.3.11.0&nbsp;</td>
+    <td>&nbsp;*.5.3.11.0&nbsp;</td>
     <td>&nbsp;ftps.tlsDataTransfers.kbDownloadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -772,7 +772,7 @@ contains the ProFTPD versions where the OID is present.
 
   <!-- ssh.sshSessions arc -->
   <tr>
-    <td>&nbsp;*.5.1.1.0&nbsp;</td>
+    <td>&nbsp;*.6.1.1.0&nbsp;</td>
     <td>&nbsp;ssh.sshSessions.keyExchangeFailureTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -780,7 +780,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.5.1.2.0&nbsp;</td>
+    <td>&nbsp;*.6.1.2.0&nbsp;</td>
     <td>&nbsp;ssh.sshSessions.clientCompressionTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -788,7 +788,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.5.1.3.0&nbsp;</td>
+    <td>&nbsp;*.6.1.3.0&nbsp;</td>
     <td>&nbsp;ssh.sshSessions.serverCompressionTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -797,7 +797,7 @@ contains the ProFTPD versions where the OID is present.
 
   <!-- ssh.sshLogins arc -->
   <tr>
-    <td>&nbsp;*.5.2.1.0&nbsp;</td>
+    <td>&nbsp;*.6.2.1.0&nbsp;</td>
     <td>&nbsp;ssh.sshLogins.hostbasedAuthTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -805,7 +805,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.5.2.2.0&nbsp;</td>
+    <td>&nbsp;*.6.2.2.0&nbsp;</td>
     <td>&nbsp;ssh.sshLogins.hostbasedAuthFailureTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -813,7 +813,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.5.2.3.0&nbsp;</td>
+    <td>&nbsp;*.6.2.3.0&nbsp;</td>
     <td>&nbsp;ssh.sshLogins.keyboardInteractiveAuthTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -821,7 +821,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.5.2.4.0&nbsp;</td>
+    <td>&nbsp;*.6.2.4.0&nbsp;</td>
     <td>&nbsp;ssh.sshLogins.keyboardInteractiveAuthFailureTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -829,7 +829,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.5.2.5.0&nbsp;</td>
+    <td>&nbsp;*.6.2.5.0&nbsp;</td>
     <td>&nbsp;ssh.sshLogins.passwordAuthTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -837,7 +837,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.5.2.6.0&nbsp;</td>
+    <td>&nbsp;*.6.2.6.0&nbsp;</td>
     <td>&nbsp;ssh.sshLogins.passwordAuthFailureTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -845,7 +845,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.5.2.7.0&nbsp;</td>
+    <td>&nbsp;*.6.2.7.0&nbsp;</td>
     <td>&nbsp;ssh.sshLogins.publickeyAuthTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -853,7 +853,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.5.2.8.0&nbsp;</td>
+    <td>&nbsp;*.6.2.8.0&nbsp;</td>
     <td>&nbsp;ssh.sshLogins.publickeyAuthFailureTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -862,7 +862,7 @@ contains the ProFTPD versions where the OID is present.
 
   <!-- sftp.sftpSessions arc -->
   <tr>
-    <td>&nbsp;*.6.1.1.0&nbsp;</td>
+    <td>&nbsp;*.7.1.1.0&nbsp;</td>
     <td>&nbsp;sftp.sftpSessions.sessionCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -870,7 +870,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.6.1.2.0&nbsp;</td>
+    <td>&nbsp;*.7.1.2.0&nbsp;</td>
     <td>&nbsp;sftp.sftpSessions.sessionTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -879,7 +879,7 @@ contains the ProFTPD versions where the OID is present.
 
   <!-- sftp.sftpDataTransfers arc -->
   <tr>
-    <td>&nbsp;*.6.2.1.0&nbsp;</td>
+    <td>&nbsp;*.7.2.1.0&nbsp;</td>
     <td>&nbsp;sftp.sftpDataTransfers.dirListCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -887,7 +887,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.6.2.2.0&nbsp;</td>
+    <td>&nbsp;*.7.2.2.0&nbsp;</td>
     <td>&nbsp;sftp.sftpDataTransfers.dirListTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -895,7 +895,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.6.2.3.0&nbsp;</td>
+    <td>&nbsp;*.7.2.3.0&nbsp;</td>
     <td>&nbsp;sftp.sftpDataTransfers.dirListFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -903,7 +903,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.6.2.4.0&nbsp;</td>
+    <td>&nbsp;*.7.2.4.0&nbsp;</td>
     <td>&nbsp;sftp.sftpDataTransfers.fileUploadCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -911,7 +911,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.6.2.5.0&nbsp;</td>
+    <td>&nbsp;*.7.2.5.0&nbsp;</td>
     <td>&nbsp;sftp.sftpDataTransfers.fileUploadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -919,7 +919,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.6.2.6.0&nbsp;</td>
+    <td>&nbsp;*.7.2.6.0&nbsp;</td>
     <td>&nbsp;sftp.sftpDataTransfers.fileUploadFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -927,7 +927,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.6.2.7.0&nbsp;</td>
+    <td>&nbsp;*.7.2.7.0&nbsp;</td>
     <td>&nbsp;sftp.sftpDataTransfers.fileDownloadCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -935,7 +935,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.6.2.8.0&nbsp;</td>
+    <td>&nbsp;*.7.2.8.0&nbsp;</td>
     <td>&nbsp;sftp.sftpDataTransfers.fileDownloadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -943,7 +943,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.6.2.9.0&nbsp;</td>
+    <td>&nbsp;*.7.2.9.0&nbsp;</td>
     <td>&nbsp;sftp.sftpDataTransfers.fileDownloadFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -951,7 +951,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.6.2.10.0&nbsp;</td>
+    <td>&nbsp;*.7.2.10.0&nbsp;</td>
     <td>&nbsp;sftp.sftpDataTransfers.kbUploadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -959,7 +959,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.6.2.11.0&nbsp;</td>
+    <td>&nbsp;*.7.2.11.0&nbsp;</td>
     <td>&nbsp;sftp.sftpDataTransfers.kbDownloadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -968,7 +968,7 @@ contains the ProFTPD versions where the OID is present.
 
   <!-- scp.scpSessions arc -->
   <tr>
-    <td>&nbsp;*.7.1.1.0&nbsp;</td>
+    <td>&nbsp;*.8.1.1.0&nbsp;</td>
     <td>&nbsp;scp.scpSessions.sessionCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -976,7 +976,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.7.1.2.0&nbsp;</td>
+    <td>&nbsp;*.8.1.2.0&nbsp;</td>
     <td>&nbsp;scp.scpSessions.sessionTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4c+&nbsp;</td>
@@ -985,7 +985,7 @@ contains the ProFTPD versions where the OID is present.
 
   <!-- scp.scpDataTransfers arc -->
   <tr>
-    <td>&nbsp;*.7.2.1.0&nbsp;</td>
+    <td>&nbsp;*.8.2.1.0&nbsp;</td>
     <td>&nbsp;scp.scpDataTransfers.fileUploadCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -993,7 +993,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.7.2.2.0&nbsp;</td>
+    <td>&nbsp;*.8.2.2.0&nbsp;</td>
     <td>&nbsp;scp.scpDataTransfers.fileUploadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -1001,7 +1001,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.7.2.3.0&nbsp;</td>
+    <td>&nbsp;*.8.2.3.0&nbsp;</td>
     <td>&nbsp;scp.scpDataTransfers.fileUploadFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -1009,7 +1009,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.7.2.4.0&nbsp;</td>
+    <td>&nbsp;*.8.2.4.0&nbsp;</td>
     <td>&nbsp;scp.scpDataTransfers.fileDownloadCount&nbsp;</td>
     <td>&nbsp;Gauge32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -1017,7 +1017,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.7.2.5.0&nbsp;</td>
+    <td>&nbsp;*.8.2.5.0&nbsp;</td>
     <td>&nbsp;scp.scpDataTransfers.fileDownloadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -1025,7 +1025,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.7.2.6.0&nbsp;</td>
+    <td>&nbsp;*.8.2.6.0&nbsp;</td>
     <td>&nbsp;scp.scpDataTransfers.fileDownloadFailedTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -1033,7 +1033,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.7.2.7.0&nbsp;</td>
+    <td>&nbsp;*.8.2.7.0&nbsp;</td>
     <td>&nbsp;scp.scpDataTransfers.kbUploadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
@@ -1041,7 +1041,7 @@ contains the ProFTPD versions where the OID is present.
   </tr>
 
   <tr>
-    <td>&nbsp;*.7.2.8.0&nbsp;</td>
+    <td>&nbsp;*.8.2.8.0&nbsp;</td>
     <td>&nbsp;scp.scpDataTransfers.kbDownloadTotal&nbsp;</td>
     <td>&nbsp;Counter32&nbsp;</td>
     <td>&nbsp;1.3.4rc3+&nbsp;</td>
