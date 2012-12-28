@@ -53,10 +53,14 @@ conn_t *snmp_conn = NULL;
 struct timeval snmp_start_tv;
 int snmp_proto_udp = IPPROTO_UDP;
 
+/* mod_snmp option flags */
+#define SNMP_OPT_RESTART_CLEARS_COUNTERS		0x0001
+
 static pid_t snmp_agent_pid = 0;
 static int snmp_enabled = TRUE;
 static int snmp_engine = FALSE;
 static const char *snmp_logname = NULL;
+static unsigned long snmp_opts = 0UL;
 
 static const char *snmp_community = NULL;
 
@@ -1922,6 +1926,14 @@ MODRET set_snmpnotify(cmd_rec *cmd) {
 
 /* usage: SNMPOptions opt1 ... optN */
 MODRET set_snmpoptions(cmd_rec *cmd) {
+  config_rec *c = NULL;
+  register unsigned int i;
+  unsigned long opts = 0UL;
+
+  if (cmd->argc-1 == 0) {
+    CONF_ERROR(cmd, "wrong number of parameters");
+  }
+
   CHECK_CONF(cmd, CONF_ROOT);
 
   /* XXX Implement;
@@ -1937,7 +1949,22 @@ MODRET set_snmpoptions(cmd_rec *cmd) {
    *
    * Default SNMPProtocol would then be "1-3".
    */
-  
+ 
+  c = add_config_param(cmd->argv[0], 1, NULL);
+
+  for (i = 1; i < cmd->argc; i++) {
+    if (strcmp(cmd->argv[i], "RestartClearsCounters") == 0) {
+      opts |= SNMP_OPT_RESTART_CLEARS_COUNTERS;
+
+    } else {
+      CONF_ERROR(cmd, pstrcat(cmd->tmp_pool, ": unknown SNMPOption '",
+        cmd->argv[i], "'", NULL));
+    }
+  }
+
+  c->argv[0] = pcalloc(c->pool, sizeof(unsigned long));
+  *((unsigned long *) c->argv[0]) = opts;
+ 
   return PR_HANDLED(cmd);
 }
 
@@ -3191,6 +3218,18 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
 
   snmp_openlog();
 
+  c = find_config(main_server->conf, CONF_PARAM, "SNMPOptions", FALSE);
+  while (c != NULL) {
+    unsigned long opts = 0;
+
+    pr_signals_handle();
+
+    opts = *((unsigned long *) c->argv[0]);
+    snmp_opts |= opts;
+
+    c = find_config_next(c, c->next, CONF_PARAM, "SNMPOptions", FALSE);
+  }
+
   c = find_config(main_server->conf, CONF_PARAM, "SNMPCommunity", FALSE);
   if (c == NULL) {
     /* No SNMPCommunity configured, mod_snmp cannot authenticate messages
@@ -3321,19 +3360,22 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
 }
 
 static void snmp_restart_ev(const void *event_data, void *user_data) {
-  int res;
-
   if (snmp_engine == FALSE) {
     return;
   }
 
   ev_incr_value(SNMP_DB_DAEMON_F_RESTART_COUNT, "daemon.restartCount", 1);
 
-  pr_trace_msg(trace_channel, 17, "restart event received, resetting counters");
-  res = snmp_mib_reset_counters();
-  if (res < 0) {
-    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-      "error resetting SNMP database counters: %s", strerror(errno));
+  if (snmp_opts & SNMP_OPT_RESTART_CLEARS_COUNTERS) {
+    int res;
+
+    pr_trace_msg(trace_channel, 17,
+      "restart event received, resetting counters");
+    res = snmp_mib_reset_counters();
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error resetting SNMP database counters: %s", strerror(errno));
+    }
   }
 
   snmp_agent_stop(snmp_agent_pid);

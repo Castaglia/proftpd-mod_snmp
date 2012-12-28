@@ -51,6 +51,7 @@ questions, concerns, or suggestions regarding this module.
   <li><a href="#SNMPLog">SNMPLog</a>
   <li><a href="#SNMPMaxVariables">SNMPMaxVariables</a>
   <li><a href="#SNMPNotify">SNMPNotify</a>
+  <li><a href="#SNMPOptions">SNMPOptions</a>
   <li><a href="#SNMPTables">SNMPTables</a>
 </ul>
 
@@ -154,6 +155,35 @@ a port number of 162 is assumed.  To specify the port number, use:
 <p>
 Multiple <code>SNMPNotify</code> directives can be configured;
 <code>mod_snmp</code> will send notifications to <i>all</i> of them.
+
+<p>
+<hr>
+<h2><a name="SNMPOptions">SNMPOptions</a></h2>
+<strong>Syntax:</strong> SNMPOptions <em>opt1 ...</em><br>
+<strong>Default:</strong> <em>None</em><br>
+<strong>Context:</strong> &quot;server config&quot;<br>
+<strong>Module:</strong> mod_snmp<br>
+<strong>Compatibility:</strong> 1.3.4rc3 and later
+
+<p>
+The <code>SNMPOptions</code> directive is used to configure various optional
+behaviors of <code>mod_snmp</code>.
+
+<p>
+Example:
+<pre>
+  SNMPOptions RestartClearsCounters
+</pre>
+
+<p>
+The currently implemented options are:
+<ul>
+  <li><code>RestartClearsCounters</code><br>
+    <p>
+    This option will cause <code>mod_snmp</code> to clear/reset every
+    counter (<i>except</i> for the <code>daemon.restartCount</code> counter)
+    whenever <code>proftpd</code> is restarted via the SIGHUP signal.
+</ul>
 
 <p>
 <hr>
