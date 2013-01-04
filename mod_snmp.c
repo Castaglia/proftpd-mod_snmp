@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp
- * Copyright (c) 2008-2012 TJ Saunders
+ * Copyright (c) 2008-2013 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1534,6 +1534,7 @@ static pid_t snmp_agent_start(const char *tables_dir, int agent_type,
     pr_netaddr_t *agent_addr) {
   int agent_fd;
   pid_t agent_pid;
+  char *agent_chroot = NULL;
 
   agent_pid = fork();
   switch (agent_pid) {
@@ -1588,7 +1589,6 @@ static pid_t snmp_agent_start(const char *tables_dir, int agent_type,
 
   if (getuid() == PR_ROOT_UID) {
     int res;
-    char *agent_chroot;
 
     /* Chroot to the SNMPTables/empty/ directory before dropping root privs. */
 
@@ -1626,9 +1626,16 @@ static pid_t snmp_agent_start(const char *tables_dir, int agent_type,
   session.gid = getegid();
   PRIVS_REVOKE
 
-  (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
-    "SNMP agent process running with UID %lu, GID %lu, restricted to '%s'",
-    (unsigned long) getuid(), (unsigned long) getgid(), getcwd(NULL, 0));
+  if (agent_chroot != NULL) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "SNMP agent process running with UID %lu, GID %lu, restricted to '%s'",
+      (unsigned long) getuid(), (unsigned long) getgid(), agent_chroot);
+
+  } else {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "SNMP agent process running with UID %lu, GID %lu, located in '%s'",
+      (unsigned long) getuid(), (unsigned long) getgid(), getcwd(NULL, 0));
+  }
 
   snmp_agent_loop(agent_fd, agent_addr);
 
