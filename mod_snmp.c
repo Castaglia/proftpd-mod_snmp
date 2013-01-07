@@ -2094,7 +2094,7 @@ MODRET snmp_pre_list(cmd_rec *cmd) {
         "ftps.tlsDataTransfers.dirListCount: %s", strerror(errno));
     }
 
-  } else {
+  } else if (strncmp(proto, "sftp", 5) == 0) {
     res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_SFTP_XFERS_F_DIR_LIST_COUNT,
       1);
     if (res < 0) {
@@ -2150,7 +2150,7 @@ MODRET snmp_log_list(cmd_rec *cmd) {
         "ftps.tlsDataTransfers.dirListTotal: %s", strerror(errno));
     }
 
-  } else {
+  } else if (strncmp(proto, "sftp", 5) == 0) {
     res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_SFTP_XFERS_F_DIR_LIST_COUNT,
       -1);
     if (res < 0) {
@@ -2215,7 +2215,7 @@ MODRET snmp_err_list(cmd_rec *cmd) {
         "ftps.tlsDataTranfers.dirListFailedTotal: %s", strerror(errno));
     }
 
-  } else {
+  } else if (strncmp(proto, "sftp", 5) == 0) {
     res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_SFTP_XFERS_F_DIR_LIST_COUNT,
       -1);
     if (res < 0) {
