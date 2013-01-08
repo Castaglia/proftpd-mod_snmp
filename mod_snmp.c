@@ -23,7 +23,6 @@
  *
  * DO NOT EDIT BELOW THIS LINE
  * $Archive: mod_snmp.a $
- * $Id: mod_sftp.c,v 1.60 2011/08/02 18:24:56 castaglia Exp $
  */
 
 #include "mod_snmp.h"
@@ -3212,7 +3211,7 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
   const char *tables_dir;
   int agent_type, res;
   pr_netaddr_t *agent_addr;
-  unsigned char sftp_loaded = FALSE, tls_loaded = FALSE;
+  unsigned char ban_loaded = FALSE, sftp_loaded = FALSE, tls_loaded = FALSE;
 
   c = find_config(main_server->conf, CONF_PARAM, "SNMPEngine", FALSE);
   if (c) {
@@ -3280,6 +3279,7 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
    */
   tls_loaded = pr_module_exists("mod_tls.c");
   sftp_loaded = pr_module_exists("mod_sftp.c");
+  ban_loaded = pr_module_exists("mod_ban.c");
 
   for (i = 0; snmp_table_ids[i] > 0; i++) {
     int skip_table = FALSE;
@@ -3295,6 +3295,12 @@ static void snmp_postparse_ev(const void *event_data, void *user_data) {
       case SNMP_DB_ID_SFTP:
       case SNMP_DB_ID_SCP:
         if (sftp_loaded == FALSE) {
+          skip_table = TRUE;
+        }
+        break;
+
+      case SNMP_DB_ID_BAN:
+        if (ban_loaded == FALSE) {
           skip_table = TRUE;
         }
         break;

@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp database tables
- * Copyright (c) 2008-2012 TJ Saunders
+ * Copyright (c) 2008-2013 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,10 +39,13 @@
 #define SNMP_DB_ID_SSH			8
 #define SNMP_DB_ID_SFTP			9
 #define SNMP_DB_ID_SCP			10
+#define SNMP_DB_ID_BAN			11
+
+#if 0
 #define SNMP_DB_ID_SQL			11
 #define SNMP_DB_ID_QUOTA		12
-#define SNMP_DB_ID_BAN			13
 #define SNMP_DB_ID_GEOIP		14
+#endif
 
 extern int snmp_table_ids[];
 
@@ -186,11 +189,19 @@ extern int snmp_table_ids[];
 #define SNMP_DB_SCP_XFERS_F_KB_UPLOAD_TOTAL			636
 #define SNMP_DB_SCP_XFERS_F_KB_DOWNLOAD_TOTAL			637
 
+/* ban.connections database fields */
+#define SNMP_DB_BAN_CONNS_F_CONN_BAN_TOTAL			700
+#define SNMP_DB_BAN_CONNS_F_USER_BAN_TOTAL			701
+#define SNMP_DB_BAN_CONNS_F_HOST_BAN_TOTAL			702
+#define SNMP_DB_BAN_CONNS_F_CLASS_BAN_TOTAL			703
+
+/* ban.bans database fields */
+#define SNMP_DB_BAN_BANS_F_BAN_COUNT				710
+#define SNMP_DB_BAN_BANS_F_BAN_TOTAL				711
+
 /* XXX sql database fields */
 
 /* XXX quota database fields */
-
-/* XXX ban database fields */
 
 /* XXX geoip database fields */
 

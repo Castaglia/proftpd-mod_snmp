@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp database storage
- * Copyright (c) 2008-2012 TJ Saunders
+ * Copyright (c) 2008-2013 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,12 +49,12 @@ int snmp_table_ids[] = {
   SNMP_DB_ID_SSH,
   SNMP_DB_ID_SFTP,
   SNMP_DB_ID_SCP,
+  SNMP_DB_ID_BAN,
 
   /* XXX Not supported just yet */
 #if 0
   SNMP_DB_ID_SQL,
   SNMP_DB_ID_QUOTA,
-  SNMP_DB_ID_BAN,
   SNMP_DB_ID_GEOIP,
 #endif
 
@@ -319,6 +319,22 @@ static struct snmp_field_info snmp_fields[] = {
   { SNMP_DB_SCP_XFERS_F_KB_DOWNLOAD_TOTAL, SNMP_DB_ID_SCP, 36,
     sizeof(uint32_t), "SCP_XFERS_F_KB_DOWNLOAD_TOTAL" },
 
+  /* ban.connections fields */
+  { SNMP_DB_BAN_CONNS_F_CONN_BAN_TOTAL, SNMP_DB_ID_BAN, 0,
+    sizeof(uint32_t), "BAN_CONNS_F_CONN_BAN_TOTAL" },
+  { SNMP_DB_BAN_CONNS_F_USER_BAN_TOTAL, SNMP_DB_ID_BAN, 4,
+    sizeof(uint32_t), "BAN_CONNS_F_USER_BAN_TOTAL" },
+  { SNMP_DB_BAN_CONNS_F_HOST_BAN_TOTAL, SNMP_DB_ID_BAN, 8,
+    sizeof(uint32_t), "BAN_CONNS_F_HOST_BAN_TOTAL" },
+  { SNMP_DB_BAN_CONNS_F_CLASS_BAN_TOTAL, SNMP_DB_ID_BAN, 12,
+    sizeof(uint32_t), "BAN_CONNS_F_CLASS_BAN_TOTAL" },
+
+  /* ban.bans fields */
+  { SNMP_DB_BAN_BANS_F_BAN_COUNT, SNMP_DB_ID_BAN, 16,
+    sizeof(uint32_t), "BAN_BANS_F_BAN_COUNT" },
+  { SNMP_DB_BAN_BANS_F_BAN_TOTAL, SNMP_DB_ID_BAN, 20,
+    sizeof(uint32_t), "BAN_BANS_F_BAN_TOTAL" },
+  
   { 0, -1, 0, 0 }
 };
 
@@ -406,12 +422,18 @@ static struct snmp_db_info snmp_dbs[] = {
    */
   { SNMP_DB_ID_SCP, -1, "scp.dat", NULL, NULL, 40 },
 
+  /* The size of the ban table is calculated as:
+   *
+   *  6 ban fields            x 4 bytes = 24 bytes
+   *
+   * for a total of 20 bytes.
+   */
+  { SNMP_DB_ID_BAN, -1, "ban.dat", NULL, NULL, 24 },
+
 #if 0
   { SNMP_DB_ID_SQL, -1, "sql.dat", NULL, NULL, 0 },
 
   { SNMP_DB_ID_QUOTA, -1, "quota.dat", NULL, NULL, 0 },
-
-  { SNMP_DB_ID_BAN, -1, "ban.dat", NULL, NULL, 0 }
 
   { SNMP_DB_ID_GEOIP, -1, "geoip.dat", NULL, NULL, 0 }
 #endif
