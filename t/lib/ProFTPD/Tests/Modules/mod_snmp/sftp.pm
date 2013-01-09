@@ -472,11 +472,6 @@ sub download_file {
     $res = $fh->read($buf, 8192);
   }
 
-  for (my $i = 0; $i < 1024; $i++) { 
-    my $buf = ("A" x $file_kb_len);
-    print $fh $buf;
-  }
-
   # To issue the FXP_CLOSE, we have to explicitly destroy the filehandle
   $fh = undef;
 
