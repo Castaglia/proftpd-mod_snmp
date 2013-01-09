@@ -3688,6 +3688,108 @@ static void snmp_ssh2_scp_sess_closed_ev(const void *event_data,
     "scp.scpSessions.sessionCount", -1);
 }
 
+/* mod_ban-generated events */
+static void snmp_ban_ban_user_ev(const void *event_data, void *user_data) {
+  const char *ban_name = NULL;
+
+  ban_name = (const char *) event_data;
+
+  ev_incr_value(SNMP_DB_BAN_BANS_F_USER_BAN_COUNT, "ban.bans.userBanCount", 1);
+  ev_incr_value(SNMP_DB_BAN_BANS_F_USER_BAN_TOTAL, "ban.bans.userBanTotal", 1);
+
+  ev_incr_value(SNMP_DB_BAN_BANS_F_BAN_COUNT, "ban.bans.banCount", 1);
+  ev_incr_value(SNMP_DB_BAN_BANS_F_BAN_TOTAL, "ban.bans.banTotal", 1);
+
+}
+
+static void snmp_ban_ban_host_ev(const void *event_data, void *user_data) {
+  const char *ban_name = NULL;
+
+  ban_name = (const char *) event_data;
+
+  ev_incr_value(SNMP_DB_BAN_BANS_F_HOST_BAN_COUNT, "ban.bans.hostBanCount", 1);
+  ev_incr_value(SNMP_DB_BAN_BANS_F_HOST_BAN_TOTAL, "ban.bans.hostBanTotal", 1);
+
+  ev_incr_value(SNMP_DB_BAN_BANS_F_BAN_COUNT, "ban.bans.banCount", 1);
+  ev_incr_value(SNMP_DB_BAN_BANS_F_BAN_TOTAL, "ban.bans.banTotal", 1);
+}
+
+static void snmp_ban_ban_class_ev(const void *event_data, void *user_data) {
+  const char *ban_name = NULL;
+
+  ban_name = (const char *) event_data;
+
+  ev_incr_value(SNMP_DB_BAN_BANS_F_CLASS_BAN_COUNT,
+    "ban.bans.classBanCount", 1);
+  ev_incr_value(SNMP_DB_BAN_BANS_F_CLASS_BAN_TOTAL,
+    "ban.bans.classBanTotal", 1);
+
+  ev_incr_value(SNMP_DB_BAN_BANS_F_BAN_COUNT, "ban.bans.banCount", 1);
+  ev_incr_value(SNMP_DB_BAN_BANS_F_BAN_TOTAL, "ban.bans.banTotal", 1);
+}
+
+static void snmp_ban_expired_ban_ev(const void *event_data, void *user_data) {
+  const char *ban_desc = NULL;
+
+  if (event_data != NULL) {
+    char *ptr = NULL;
+
+    ban_desc = (const char *) event_data;
+
+    ptr = strchr(ban_desc, ':');
+    if (ptr != NULL) {
+      /* To get the specific ban criteria/name later, use ptr + 1. */
+
+      if (strncmp(ban_desc, "USER", 4) == 0) {
+        ev_incr_value(SNMP_DB_BAN_BANS_F_USER_BAN_COUNT,
+          "ban.bans.userBanCount", -1);
+
+      } else if (strncmp(ban_desc, "HOST", 4) == 0) {
+        ev_incr_value(SNMP_DB_BAN_BANS_F_HOST_BAN_COUNT,
+          "ban.bans.hostBanCount", -1);
+
+      } else if (strncmp(ban_desc, "CLASS", 5) == 0) {
+        ev_incr_value(SNMP_DB_BAN_BANS_F_CLASS_BAN_COUNT,
+          "ban.bans.classBanCount", -1);
+      }
+
+      ev_incr_value(SNMP_DB_BAN_BANS_F_BAN_COUNT, "ban.bans.banCount", -1);
+    }
+  }
+}
+
+static void snmp_ban_client_disconn_ev(const void *event_data,
+    void *user_data) {
+  const char *ban_desc = NULL;
+
+  if (event_data != NULL) {
+    char *ptr = NULL;
+
+    ban_desc = (const char *) event_data;
+
+    ptr = strchr(ban_desc, ':');
+    if (ptr != NULL) {
+      /* To get the specific ban criteria/name later, use ptr + 1. */
+
+      if (strncmp(ban_desc, "USER", 4) == 0) {
+        ev_incr_value(SNMP_DB_BAN_CONNS_F_USER_BAN_TOTAL,
+          "ban.connections.userBannedTotal", 1);
+
+      } else if (strncmp(ban_desc, "HOST", 4) == 0) {
+        ev_incr_value(SNMP_DB_BAN_CONNS_F_HOST_BAN_TOTAL,
+          "ban.connections.hostBannedTotal", 1);
+
+      } else if (strncmp(ban_desc, "CLASS", 5) == 0) {
+        ev_incr_value(SNMP_DB_BAN_CONNS_F_CLASS_BAN_TOTAL,
+          "ban.connections.classBannedTotal", 1);
+      }
+
+      ev_incr_value(SNMP_DB_BAN_CONNS_F_CONN_BAN_TOTAL,
+        "ban.connections.connectionBannedTotal", 1);
+    }
+  }
+}
+
 /* XXX Do we want to support any Controls/ftpctl actions? */
 
 /* Initialization routines
@@ -3823,6 +3925,37 @@ static int snmp_sess_init(void) {
       snmp_ssh2_scp_sess_opened_ev, NULL);
     pr_event_register(&snmp_module, "mod_sftp.scp.session-closed",
       snmp_ssh2_scp_sess_closed_ev, NULL);
+  }
+
+  if (pr_module_exists("mod_ban.c") == TRUE) {
+    /* mod_ban events */
+
+    pr_event_register(&snmp_module, "mod_ban.ban-user", snmp_ban_ban_user_ev,
+      NULL);
+    pr_event_register(&snmp_module, "mod_ban.ban-host", snmp_ban_ban_host_ev,
+      NULL);
+    pr_event_register(&snmp_module, "mod_ban.ban-class", snmp_ban_ban_class_ev,
+      NULL);
+
+    /* Note: For these event listeners to work as expected, the mod_snmp
+     * module needs to be loaded AFTER mod_ban, i.e.:
+     *
+     *   --with-modules=....:mod_ban:mod_snmp:...
+     *
+     * or:
+     *
+     *  LoadModule mod_ban.c
+     *  ...
+     *  LoadModule mod_snmp.c
+     *
+     * That we, we can have our event listeners registered by the time that
+     * mod_ban's sess_init callback causes events to be generated for an
+     * incoming connection (including ban expiration).
+     */
+    pr_event_register(&snmp_module, "mod_ban.ban.expired",
+      snmp_ban_expired_ban_ev, NULL);
+    pr_event_register(&snmp_module, "mod_ban.ban.client-disconnected",
+      snmp_ban_client_disconn_ev, NULL);
   }
 
   res = snmp_db_incr_value(session.pool, SNMP_DB_DAEMON_F_CONN_COUNT, 1);

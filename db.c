@@ -334,6 +334,18 @@ static struct snmp_field_info snmp_fields[] = {
     sizeof(uint32_t), "BAN_BANS_F_BAN_COUNT" },
   { SNMP_DB_BAN_BANS_F_BAN_TOTAL, SNMP_DB_ID_BAN, 20,
     sizeof(uint32_t), "BAN_BANS_F_BAN_TOTAL" },
+  { SNMP_DB_BAN_BANS_F_USER_BAN_COUNT, SNMP_DB_ID_BAN, 24,
+    sizeof(uint32_t), "BAN_BANS_F_USER_BAN_COUNT" },
+  { SNMP_DB_BAN_BANS_F_USER_BAN_TOTAL, SNMP_DB_ID_BAN, 28,
+    sizeof(uint32_t), "BAN_BANS_F_USER_BAN_TOTAL" },
+  { SNMP_DB_BAN_BANS_F_HOST_BAN_COUNT, SNMP_DB_ID_BAN, 32,
+    sizeof(uint32_t), "BAN_BANS_F_HOST_BAN_COUNT" },
+  { SNMP_DB_BAN_BANS_F_HOST_BAN_TOTAL, SNMP_DB_ID_BAN, 36,
+    sizeof(uint32_t), "BAN_BANS_F_HOST_BAN_TOTAL" },
+  { SNMP_DB_BAN_BANS_F_CLASS_BAN_COUNT, SNMP_DB_ID_BAN, 40,
+    sizeof(uint32_t), "BAN_BANS_F_CLASS_BAN_COUNT" },
+  { SNMP_DB_BAN_BANS_F_CLASS_BAN_TOTAL, SNMP_DB_ID_BAN, 44,
+    sizeof(uint32_t), "BAN_BANS_F_CLASS_BAN_TOTAL" },
   
   { 0, -1, 0, 0 }
 };
@@ -424,11 +436,11 @@ static struct snmp_db_info snmp_dbs[] = {
 
   /* The size of the ban table is calculated as:
    *
-   *  6 ban fields            x 4 bytes = 24 bytes
+   *  12 ban fields            x 4 bytes = 48 bytes
    *
-   * for a total of 20 bytes.
+   * for a total of 48 bytes.
    */
-  { SNMP_DB_ID_BAN, -1, "ban.dat", NULL, NULL, 24 },
+  { SNMP_DB_ID_BAN, -1, "ban.dat", NULL, NULL, 48 },
 
 #if 0
   { SNMP_DB_ID_SQL, -1, "sql.dat", NULL, NULL, 0 },

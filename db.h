@@ -198,6 +198,12 @@ extern int snmp_table_ids[];
 /* ban.bans database fields */
 #define SNMP_DB_BAN_BANS_F_BAN_COUNT				710
 #define SNMP_DB_BAN_BANS_F_BAN_TOTAL				711
+#define SNMP_DB_BAN_BANS_F_USER_BAN_COUNT			712
+#define SNMP_DB_BAN_BANS_F_USER_BAN_TOTAL			713
+#define SNMP_DB_BAN_BANS_F_HOST_BAN_COUNT			714
+#define SNMP_DB_BAN_BANS_F_HOST_BAN_TOTAL			715
+#define SNMP_DB_BAN_BANS_F_CLASS_BAN_COUNT			716
+#define SNMP_DB_BAN_BANS_F_CLASS_BAN_TOTAL			717
 
 /* XXX sql database fields */
 
