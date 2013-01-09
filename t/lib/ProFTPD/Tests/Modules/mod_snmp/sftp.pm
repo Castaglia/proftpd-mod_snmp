@@ -843,7 +843,7 @@ sub snmp_sftp_v1_get_xfer_dirlist_counts {
     eval {
       my $expected;
 
-      # First, get the dirlist countsB
+      # First, get the dirlist counts
       my ($dirlist_count, $dirlist_total) = get_sftp_xfer_dirlist_info($agent_port,
         $snmp_community);
 
