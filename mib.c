@@ -1,6 +1,6 @@
 /*
  * ProFTPD - mod_snmp MIB support
- * Copyright (c) 2008-2012 TJ Saunders
+ * Copyright (c) 2008-2013 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -824,6 +824,50 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "scp.scpDataTransfers.kbDownloadTotal.0",
     SNMP_SMI_COUNTER32 },
 
+  /* ban.connections MIBs */
+  { { SNMP_MIB_BAN_CONNS_OID_CONN_BAN_TOTAL, 0 },
+    SNMP_MIB_BAN_CONNS_OIDLEN_CONN_BAN_TOTAL + 1,
+    SNMP_DB_BAN_CONNS_F_CONN_BAN_TOTAL, FALSE, FALSE,
+    SNMP_MIB_NAME_PREFIX "ban.connections.connectionBannedTotal",
+    SNMP_MIB_NAME_PREFIX "ban.connections.connectionBannedTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_BAN_CONNS_OID_USER_BAN_TOTAL, 0 },
+    SNMP_MIB_BAN_CONNS_OIDLEN_USER_BAN_TOTAL + 1,
+    SNMP_DB_BAN_CONNS_F_USER_BAN_TOTAL, FALSE, FALSE,
+    SNMP_MIB_NAME_PREFIX "ban.connections.userBannedTotal",
+    SNMP_MIB_NAME_PREFIX "ban.connections.userBannedTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_BAN_CONNS_OID_HOST_BAN_TOTAL, 0 },
+    SNMP_MIB_BAN_CONNS_OIDLEN_HOST_BAN_TOTAL + 1,
+    SNMP_DB_BAN_CONNS_F_HOST_BAN_TOTAL, FALSE, FALSE,
+    SNMP_MIB_NAME_PREFIX "ban.connections.hostBannedTotal",
+    SNMP_MIB_NAME_PREFIX "ban.connections.hostBannedTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_BAN_CONNS_OID_CLASS_BAN_TOTAL, 0 },
+    SNMP_MIB_BAN_CONNS_OIDLEN_CLASS_BAN_TOTAL + 1,
+    SNMP_DB_BAN_CONNS_F_CLASS_BAN_TOTAL, FALSE, FALSE,
+    SNMP_MIB_NAME_PREFIX "ban.connections.classBannedTotal",
+    SNMP_MIB_NAME_PREFIX "ban.connections.classBannedTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  /* ban.bans MIBs */
+  { { SNMP_MIB_BAN_BANS_OID_BAN_COUNT, 0 },
+    SNMP_MIB_BAN_BANS_OIDLEN_BAN_COUNT + 1,
+    SNMP_DB_BAN_BANS_F_BAN_COUNT, FALSE, FALSE,
+    SNMP_MIB_NAME_PREFIX "ban.bans.banCount",
+    SNMP_MIB_NAME_PREFIX "ban.bans.banCount.0",
+    SNMP_SMI_GAUGE32 },
+
+  { { SNMP_MIB_BAN_BANS_OID_BAN_TOTAL, 0 },
+    SNMP_MIB_BAN_BANS_OIDLEN_BAN_TOTAL + 1,
+    SNMP_DB_BAN_BANS_F_BAN_TOTAL, FALSE, FALSE,
+    SNMP_MIB_NAME_PREFIX "ban.bans.banTotal",
+    SNMP_MIB_NAME_PREFIX "ban.bans.banTotal.0",
+    SNMP_SMI_COUNTER32 },
+
   /* This sentinel entry is always enabled. */
   { { }, 0, 0, TRUE, FALSE, NULL, NULL, 0 }
 };
@@ -1070,6 +1114,20 @@ int snmp_mib_init(void) {
         case SNMP_DB_ID_SSH:
         case SNMP_DB_ID_SFTP:
         case SNMP_DB_ID_SCP:
+          snmp_mibs[i].mib_enabled = TRUE;
+          break;
+      }
+    }
+  }
+
+  if (pr_module_exists("mod_ban.c") == TRUE) {
+    register unsigned int i;
+
+    /* Handle mod_ban-related MIBs. */
+    for (i = 1; snmp_mibs[i].mib_oidlen != 0; i++) {
+      int db_id = snmp_db_get_field_db_id(snmp_mibs[i].db_field);
+      switch (db_id) {
+        case SNMP_DB_ID_BAN:
           snmp_mibs[i].mib_enabled = TRUE;
           break;
       }
