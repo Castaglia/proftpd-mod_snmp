@@ -3548,7 +3548,7 @@ static void snmp_tls_ctrl_handshake_err_ev(const void *event_data,
   }
   
   ev_incr_value(SNMP_DB_FTPS_SESS_F_CTRL_HANDSHAKE_ERR_TOTAL,
-    "ftps.tlsSessions.ctrlHandshakeFailureTotal", 1);
+    "ftps.tlsSessions.ctrlHandshakeFailedTotal", 1);
 }
 
 static void snmp_tls_data_handshake_err_ev(const void *event_data,
@@ -3558,7 +3558,26 @@ static void snmp_tls_data_handshake_err_ev(const void *event_data,
   }
   
   ev_incr_value(SNMP_DB_FTPS_SESS_F_DATA_HANDSHAKE_ERR_TOTAL,
-    "ftps.tlsSessions.dataHandshakeFailureTotal", 1);
+    "ftps.tlsSessions.dataHandshakeFailedTotal", 1);
+}
+
+static void snmp_tls_verify_client_ev(const void *event_data, void *user_data) {
+  if (snmp_engine == FALSE) {
+    return;
+  } 
+
+  ev_incr_value(SNMP_DB_FTPS_SESS_F_VERIFY_CLIENT_TOTAL,
+    "ftps.tlsSessions.verifyClientTotal", 1);
+}
+
+static void snmp_tls_verify_client_err_ev(const void *event_data,
+    void *user_data) {
+  if (snmp_engine == FALSE) {
+    return;
+  }
+
+  ev_incr_value(SNMP_DB_FTPS_SESS_F_VERIFY_CLIENT_ERR_TOTAL,
+    "ftps.tlsSessions.verifyClientFailedTotal", 1);
 }
 
 /* mod_sftp-generated events */
@@ -3568,7 +3587,7 @@ static void snmp_ssh2_kex_err_ev(const void *event_data, void *user_data) {
   }
 
   ev_incr_value(SNMP_DB_SSH_SESS_F_KEX_ERR_TOTAL,
-    "ssh.sshSessions.keyExchangeFailureTotal", 1);
+    "ssh.sshSessions.keyExchangeFailedTotal", 1);
 }
 
 static void snmp_ssh2_c2s_compress_ev(const void *event_data, void *user_data) {
@@ -3606,7 +3625,7 @@ static void snmp_ssh2_auth_hostbased_err_ev(const void *event_data,
   }
 
   ev_incr_value(SNMP_DB_SSH_LOGINS_F_HOSTBASED_ERR_TOTAL,
-    "ssh.sshLogins.hostbasedAuthFailureTotal", 1);
+    "ssh.sshLogins.hostbasedAuthFailedTotal", 1);
 }
 
 static void snmp_ssh2_auth_kbdint_ev(const void *event_data,
@@ -3626,7 +3645,7 @@ static void snmp_ssh2_auth_kbdint_err_ev(const void *event_data,
   }
 
   ev_incr_value(SNMP_DB_SSH_LOGINS_F_KBDINT_ERR_TOTAL,
-    "ssh.sshLogins.keyboardInteractiveAuthFailureTotal", 1);
+    "ssh.sshLogins.keyboardInteractiveAuthFailedTotal", 1);
 }
 
 static void snmp_ssh2_auth_passwd_ev(const void *event_data,
@@ -3646,7 +3665,7 @@ static void snmp_ssh2_auth_passwd_err_ev(const void *event_data,
   }
 
   ev_incr_value(SNMP_DB_SSH_LOGINS_F_PASSWD_ERR_TOTAL,
-    "ssh.sshLogins.passwordAuthFailureTotal", 1);
+    "ssh.sshLogins.passwordAuthFailedTotal", 1);
 }
 
 static void snmp_ssh2_auth_publickey_ev(const void *event_data,
@@ -3666,7 +3685,7 @@ static void snmp_ssh2_auth_publickey_err_ev(const void *event_data,
   }
 
   ev_incr_value(SNMP_DB_SSH_LOGINS_F_PUBLICKEY_ERR_TOTAL,
-    "ssh.sshLogins.publickeyAuthFailureTotal", 1);
+    "ssh.sshLogins.publickeyAuthFailedTotal", 1);
 }
 
 static void snmp_ssh2_sftp_proto_version_ev(const void *event_data,
@@ -3954,6 +3973,11 @@ static int snmp_sess_init(void) {
       snmp_tls_ctrl_handshake_err_ev, NULL);
     pr_event_register(&snmp_module, "mod_tls.data-handshake-failed",
       snmp_tls_data_handshake_err_ev, NULL);
+
+    pr_event_register(&snmp_module, "mod_tls.verify-client",
+      snmp_tls_verify_client_ev, NULL);
+    pr_event_register(&snmp_module, "mod_tls.verify-client-failed",
+      snmp_tls_verify_client_err_ev, NULL);
   }
 
   if (pr_module_exists("mod_sftp.c") == TRUE) {

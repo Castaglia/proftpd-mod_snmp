@@ -588,6 +588,22 @@ snmpModule MODULE-IDENTITY
                 " Total number of failed CCC (Clear Command Channel) FTP commands "
         ::= { tlsSessions 6 }
 
+        verifyClientTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of successful client cert verifications "
+        ::= { tlsSessions 7 }
+
+        verifyClientFailedTotal OBJECT-TYPE
+            SYNTAX Counter32
+            MAX-ACCESS read-only
+            STATUS current
+            DESCRIPTION
+                " Total number of failed client cert verifications "
+        ::= { tlsSessions 8 }
+
 --
 -- ftps.tlsLogins arc
 --

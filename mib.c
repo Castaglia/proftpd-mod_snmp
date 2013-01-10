@@ -469,9 +469,23 @@ static struct snmp_mib snmp_mibs[] = {
 
   { { SNMP_MIB_FTPS_SESS_OID_CCC_ERR_TOTAL, 0 },
     SNMP_MIB_FTPS_SESS_OIDLEN_CCC_ERR_TOTAL + 1,
-    SNMP_DB_FTPS_SESS_F_CCC_TOTAL, FALSE, FALSE,
+    SNMP_DB_FTPS_SESS_F_CCC_ERR_TOTAL, FALSE, FALSE,
     SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.clearCommandChannelFailedTotal",
     SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.clearCommandChannelFailedTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_SESS_OID_VERIFY_CLIENT_TOTAL, 0 },
+    SNMP_MIB_FTPS_SESS_OIDLEN_VERIFY_CLIENT_TOTAL + 1,
+    SNMP_DB_FTPS_SESS_F_VERIFY_CLIENT_TOTAL, FALSE, FALSE,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.verifyClientTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.verifyClientTotal.0",
+    SNMP_SMI_COUNTER32 },
+
+  { { SNMP_MIB_FTPS_SESS_OID_VERIFY_CLIENT_ERR_TOTAL, 0 },
+    SNMP_MIB_FTPS_SESS_OIDLEN_VERIFY_CLIENT_ERR_TOTAL + 1,
+    SNMP_DB_FTPS_SESS_F_VERIFY_CLIENT_ERR_TOTAL, FALSE, FALSE,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.verifyClientFailedTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsSessions.verifyClientFailedTotal.0",
     SNMP_SMI_COUNTER32 },
 
   /* ftps.tlsLogins MIBs */
