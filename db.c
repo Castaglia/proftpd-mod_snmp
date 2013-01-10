@@ -206,29 +206,35 @@ static struct snmp_field_info snmp_fields[] = {
     sizeof(uint32_t), "FTPS_LOGINS_F_TOTAL" },
   { SNMP_DB_FTPS_LOGINS_F_ERR_TOTAL, SNMP_DB_ID_TLS, 20,
     sizeof(uint32_t), "FTPS_LOGINS_F_ERR_TOTAL" },
+  { SNMP_DB_FTPS_LOGINS_F_ERR_BAD_USER_TOTAL, SNMP_DB_ID_TLS, 24,
+    sizeof(uint32_t), "FTPS_LOGINS_F_ERR_BAD_USER_TOTAL" },
+  { SNMP_DB_FTPS_LOGINS_F_ERR_BAD_PASSWD_TOTAL, SNMP_DB_ID_TLS, 28,
+    sizeof(uint32_t), "FTPS_LOGINS_F_ERR_BAD_PASSWD_TOTAL" },
+  { SNMP_DB_FTPS_LOGINS_F_ERR_GENERAL_TOTAL, SNMP_DB_ID_TLS, 32,
+    sizeof(uint32_t), "FTPS_LOGINS_F_ERR_GENERAL_TOTAL" },
 
   /* ftps.tlsDataTransfers fields */
-  { SNMP_DB_FTPS_XFERS_F_DIR_LIST_COUNT, SNMP_DB_ID_TLS, 24,
+  { SNMP_DB_FTPS_XFERS_F_DIR_LIST_COUNT, SNMP_DB_ID_TLS, 36,
     sizeof(uint32_t), "FTPS_XFERS_F_DIR_LIST_COUNT" },
-  { SNMP_DB_FTPS_XFERS_F_DIR_LIST_TOTAL, SNMP_DB_ID_TLS, 28,
+  { SNMP_DB_FTPS_XFERS_F_DIR_LIST_TOTAL, SNMP_DB_ID_TLS, 40,
     sizeof(uint32_t), "FTPS_XFERS_F_DIR_LIST_TOTAL" },
-  { SNMP_DB_FTPS_XFERS_F_DIR_LIST_ERR_TOTAL, SNMP_DB_ID_TLS, 32,
+  { SNMP_DB_FTPS_XFERS_F_DIR_LIST_ERR_TOTAL, SNMP_DB_ID_TLS, 44,
     sizeof(uint32_t), "FTPS_XFERS_F_DIR_LIST_ERR_TOTAL" },
-  { SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_COUNT, SNMP_DB_ID_TLS, 36,
+  { SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_COUNT, SNMP_DB_ID_TLS, 48,
     sizeof(uint32_t), "FTPS_XFERS_F_FILE_UPLOAD_COUNT" },
-  { SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_TOTAL, SNMP_DB_ID_TLS, 40,
+  { SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_TOTAL, SNMP_DB_ID_TLS, 52,
     sizeof(uint32_t), "FTPS_XFERS_F_FILE_UPLOAD_TOTAL" },
-  { SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_ERR_TOTAL, SNMP_DB_ID_TLS, 44,
+  { SNMP_DB_FTPS_XFERS_F_FILE_UPLOAD_ERR_TOTAL, SNMP_DB_ID_TLS, 56,
     sizeof(uint32_t), "FTPS_XFERS_F_FILE_UPLOAD_ERR_TOTAL" },
-  { SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_COUNT, SNMP_DB_ID_TLS, 48,
+  { SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_COUNT, SNMP_DB_ID_TLS, 60,
     sizeof(uint32_t), "FTPS_XFERS_F_FILE_DOWNLOAD_COUNT" },
-  { SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_TOTAL, SNMP_DB_ID_TLS, 52,
+  { SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_TOTAL, SNMP_DB_ID_TLS, 64,
     sizeof(uint32_t), "FTPS_XFERS_F_FILE_DOWNLOAD_TOTAL" },
-  { SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL, SNMP_DB_ID_TLS, 56,
+  { SNMP_DB_FTPS_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL, SNMP_DB_ID_TLS, 68,
     sizeof(uint32_t), "FTPS_XFERS_F_FILE_DOWNLOAD_ERR_TOTAL" },
-  { SNMP_DB_FTPS_XFERS_F_KB_UPLOAD_TOTAL, SNMP_DB_ID_TLS, 60,
+  { SNMP_DB_FTPS_XFERS_F_KB_UPLOAD_TOTAL, SNMP_DB_ID_TLS, 72,
     sizeof(uint32_t), "FTPS_XFERS_F_KB_UPLOAD_TOTAL" },
-  { SNMP_DB_FTPS_XFERS_F_KB_DOWNLOAD_TOTAL, SNMP_DB_ID_TLS, 64,
+  { SNMP_DB_FTPS_XFERS_F_KB_DOWNLOAD_TOTAL, SNMP_DB_ID_TLS, 76,
     sizeof(uint32_t), "FTPS_XFERS_F_KB_DOWNLOAD_TOTAL" },
 
   /* ssh.sshSessions fields */
@@ -400,12 +406,12 @@ static struct snmp_db_info snmp_dbs[] = {
   /* The size of the ftps table is calculated as:
    *
    *  4 session fields        x 4 bytes = 16 bytes
-   *  2 login fields          x 4 bytes =  8 bytes
+   *  5 login fields          x 4 bytes = 20 bytes
    *  11 data transfer fields x 4 bytes = 44 bytes
    *
-   * for a total of 68 bytes.
+   * for a total of 80 bytes.
    */
-  { SNMP_DB_ID_TLS, -1, "tls.dat", NULL, NULL, 68 },
+  { SNMP_DB_ID_TLS, -1, "tls.dat", NULL, NULL, 80 },
 
   /* The size of the ssh table is calculated as:
    *

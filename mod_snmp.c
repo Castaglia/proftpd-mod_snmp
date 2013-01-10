@@ -3046,7 +3046,7 @@ static void ev_incr_value(unsigned int field_id, const char *field_str,
 
 static void snmp_auth_code_ev(const void *event_data, void *user_data) {
   int auth_code, res;
-  unsigned int field_id, notify_id = 0;
+  unsigned int field_id, is_ftps = FALSE, notify_id = 0;
   const char *notify_str = NULL, *proto;
 
   if (snmp_engine == FALSE) {
@@ -3065,21 +3065,43 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
   /* Any notifications we generate here may depend on the protocol in use. */
   proto = pr_session_get_protocol(0);
 
+  if (strncmp(proto, "ftps", 5) == 0) {
+    is_ftps = TRUE;
+  }
+
   switch (auth_code) {
     case PR_AUTH_NOPWD:
-      field_id = SNMP_DB_FTP_LOGINS_F_ERR_BAD_USER_TOTAL;
+      if (is_ftps == FALSE) {
+        field_id = SNMP_DB_FTP_LOGINS_F_ERR_BAD_USER_TOTAL;
+
+      } else {
+        field_id = SNMP_DB_FTPS_LOGINS_F_ERR_BAD_USER_TOTAL;
+      }
+
       notify_id = SNMP_NOTIFY_FTP_BAD_USER;
       notify_str = "loginFailedBadUser";
       break;
 
     case PR_AUTH_BADPWD:
-      field_id = SNMP_DB_FTP_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
+      if (is_ftps == FALSE) {
+        field_id = SNMP_DB_FTP_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
+
+      } else {
+        field_id = SNMP_DB_FTPS_LOGINS_F_ERR_BAD_PASSWD_TOTAL;
+      }
+
       notify_id = SNMP_NOTIFY_FTP_BAD_PASSWD;
       notify_str = "loginFailedBadPassword";
       break;
 
     default:
-      field_id = SNMP_DB_FTP_LOGINS_F_ERR_GENERAL_TOTAL;
+      if (is_ftps == FALSE) {
+        field_id = SNMP_DB_FTP_LOGINS_F_ERR_GENERAL_TOTAL;
+
+      } else {
+        field_id = SNMP_DB_FTPS_LOGINS_F_ERR_GENERAL_TOTAL;
+      }
+
       break;
   }
  
