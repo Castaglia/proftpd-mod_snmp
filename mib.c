@@ -496,6 +496,13 @@ static struct snmp_mib snmp_mibs[] = {
     SNMP_MIB_NAME_PREFIX "ftps.tlsLogins.loginGeneralErrorTotal.0",
     SNMP_SMI_COUNTER32 },
 
+  { { SNMP_MIB_FTPS_LOGINS_OID_CERT_TOTAL, 0 },
+    SNMP_MIB_FTPS_LOGINS_OIDLEN_CERT_TOTAL + 1,
+    SNMP_DB_FTPS_LOGINS_F_ERR_GENERAL_TOTAL, FALSE, FALSE,
+    SNMP_MIB_NAME_PREFIX "ftps.tlsLogins.loginCertTotal",
+    SNMP_MIB_NAME_PREFIX "ftps.tlsLogins.loginCertTotal.0",
+    SNMP_SMI_COUNTER32 },
+
   /* ftps.tlsDataTransfers MIBs */
   { { SNMP_MIB_FTPS_XFERS_OID_DIR_LIST_COUNT, 0 },
     SNMP_MIB_FTPS_XFERS_OIDLEN_DIR_LIST_COUNT + 1,

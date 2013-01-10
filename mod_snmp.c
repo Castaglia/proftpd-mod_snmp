@@ -3055,13 +3055,6 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
 
   auth_code = *((int *) event_data);
 
-  if (auth_code >= 0) {
-    /* We only use this listener for recording the reasons why authentication
-     * might fail.
-     */
-    return;
-  }
-
   /* Any notifications we generate here may depend on the protocol in use. */
   proto = pr_session_get_protocol(0);
 
@@ -3070,6 +3063,12 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
   }
 
   switch (auth_code) {
+    case PR_AUTH_RFC2228_OK:
+      if (is_ftps == TRUE) {
+        field_id = SNMP_DB_FTPS_LOGINS_F_CERT_TOTAL;
+      }
+      break;
+
     case PR_AUTH_NOPWD:
       if (is_ftps == FALSE) {
         field_id = SNMP_DB_FTP_LOGINS_F_ERR_BAD_USER_TOTAL;
@@ -3105,7 +3104,15 @@ static void snmp_auth_code_ev(const void *event_data, void *user_data) {
       break;
   }
  
-  ev_incr_value(field_id, "login failure total", 1); 
+  if (auth_code >= 0) {
+    ev_incr_value(field_id, "login total", 1); 
+
+    /* We only send notifications for failed authentications. */
+    return;
+
+  } else {
+    ev_incr_value(field_id, "login failure total", 1); 
+  }
 
   if (notify_id > 0 &&
       snmp_notifys != NULL) {

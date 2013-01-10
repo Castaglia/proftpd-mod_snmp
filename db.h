@@ -128,6 +128,7 @@ extern int snmp_table_ids[];
 #define SNMP_DB_FTPS_LOGINS_F_ERR_BAD_USER_TOTAL		322
 #define SNMP_DB_FTPS_LOGINS_F_ERR_BAD_PASSWD_TOTAL		323
 #define SNMP_DB_FTPS_LOGINS_F_ERR_GENERAL_TOTAL			324
+#define SNMP_DB_FTPS_LOGINS_F_CERT_TOTAL			325
 
 /* ftps.tlsDataTransfers database fields */
 #define SNMP_DB_FTPS_XFERS_F_DIR_LIST_COUNT			330
