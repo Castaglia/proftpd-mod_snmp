@@ -121,6 +121,8 @@ extern int snmp_table_ids[];
 #define SNMP_DB_FTPS_SESS_F_SESS_TOTAL				311
 #define SNMP_DB_FTPS_SESS_F_CTRL_HANDSHAKE_ERR_TOTAL		312
 #define SNMP_DB_FTPS_SESS_F_DATA_HANDSHAKE_ERR_TOTAL		313
+#define SNMP_DB_FTPS_SESS_F_CCC_TOTAL				314
+#define SNMP_DB_FTPS_SESS_F_CCC_ERR_TOTAL			315
 
 /* ftps.tlsLogins database fields */
 #define SNMP_DB_FTPS_LOGINS_F_TOTAL				320

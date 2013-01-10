@@ -3023,6 +3023,49 @@ MODRET snmp_log_auth(cmd_rec *cmd) {
   return PR_DECLINED(cmd);
 }
 
+MODRET snmp_log_ccc(cmd_rec *cmd) {
+  const char *proto;
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
+  proto = pr_session_get_protocol(0);
+  if (strncmp(proto, "ftps", 5) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_FTPS_SESS_F_CCC_TOTAL, 1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "ftps.tlsSessions.clearCommandChannelTotal: %s", strerror(errno));
+    }
+  }
+
+  return PR_DECLINED(cmd);
+}
+
+MODRET snmp_err_ccc(cmd_rec *cmd) {
+  const char *proto;
+  int res;
+
+  if (snmp_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
+  proto = pr_session_get_protocol(0);
+  if (strncmp(proto, "ftps", 5) == 0) {
+    res = snmp_db_incr_value(cmd->tmp_pool, SNMP_DB_FTPS_SESS_F_CCC_ERR_TOTAL,
+      1);
+    if (res < 0) {
+      (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+        "error incrementing SNMP database for "
+        "ftps.tlsSessions.clearCommandChannelFailedTotal: %s", strerror(errno));
+    }
+  }
+
+  return PR_DECLINED(cmd);
+}
+
 /* Event handlers
  */
 
@@ -4064,6 +4107,8 @@ static cmdtable snmp_cmdtab[] = {
 
   /* For mod_tls */
   { LOG_CMD,		C_AUTH,	G_NONE,	snmp_log_auth,	FALSE,	FALSE },
+  { LOG_CMD,		C_CCC,	G_NONE,	snmp_log_ccc,	FALSE,	FALSE },
+  { LOG_CMD_ERR,	C_CCC,	G_NONE,	snmp_err_ccc,	FALSE,	FALSE },
 
   { 0, NULL }
 };
