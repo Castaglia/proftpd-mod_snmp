@@ -1319,7 +1319,7 @@ static int snmp_agent_handle_request(struct snmp_packet *pkt) {
   return res;
 }
 
-static int snmp_agent_handle_packet(int sockfd) {
+static int snmp_agent_handle_packet(int sockfd, pr_netaddr_t *agent_addr) {
   int nbytes, res;
   struct sockaddr_in from_sockaddr;
   socklen_t from_sockaddrlen;
@@ -1373,6 +1373,22 @@ static int snmp_agent_handle_packet(int sockfd) {
   } else {
     (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
       "received %d UDP bytes from client in unknown class", nbytes);
+  }
+
+  /* Check for malicious packets, which forge the from address/port to be
+   * the same as our listening address/port, trying to induce us to talk
+   * to ourselves.
+   */
+  if (pr_netaddr_cmp(&from_addr, agent_addr) == 0) {
+    (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
+      "rejecting forged UDP packet from %s#%u (appears to be from "
+      "SNMPAgent %s#%u)",
+      pr_netaddr_get_ipstr(&from_addr), ntohs(pr_netaddr_get_port(&from_addr)),
+      pr_netaddr_get_ipstr(agent_addr), ntohs(pr_netaddr_get_port(agent_addr)));
+
+    destroy_pool(pkt->pool);
+    errno = EACCES;
+    return -1;
   }
 
   /* Note: mod_ifsession does NOT affect mod_snmp ACLs; use <Limit SNMP> */
@@ -1519,7 +1535,7 @@ static void snmp_agent_loop(int sockfd, pr_netaddr_t *agent_addr) {
 
     } else {
       if (FD_ISSET(sockfd, &listenfds)) {
-        res = snmp_agent_handle_packet(sockfd);
+        res = snmp_agent_handle_packet(sockfd, agent_addr);
         if (res < 0) {
           (void) pr_log_writefile(snmp_logfd, MOD_SNMP_VERSION,
             "error handling SNMP packet: %s", strerror(errno));
