@@ -3202,38 +3202,36 @@ static void snmp_cmd_invalid_ev(const void *event_data, void *user_data) {
 }
 
 static void snmp_exit_ev(const void *event_data, void *user_data) {
+  const char *proto;
 
   if (snmp_engine == FALSE) {
     return;
   }
 
+  ev_incr_value(SNMP_DB_DAEMON_F_CONN_COUNT, "daemon.connectionCount", -1);
+
   if (session.disconnect_reason == PR_SESS_DISCONNECT_SESSION_INIT_FAILED) {
     ev_incr_value(SNMP_DB_DAEMON_F_CONN_REFUSED_TOTAL,
       "daemon.connectionRefusedTotal", 1);
+  }
+
+  proto = pr_session_get_protocol(0);
+
+  if (strncmp(proto, "ftp", 4) == 0) {
+    ev_incr_value(SNMP_DB_FTP_SESS_F_SESS_COUNT,
+      "ftp.sessions.sessionCount", -1);
+
+    if (session.anon_config != NULL) {
+      ev_incr_value(SNMP_DB_FTP_LOGINS_F_ANON_COUNT,
+        "ftp.logins.anonLoginCount", -1);
+    }
+
+  } else if (strncmp(proto, "ftps", 5) == 0) {
+    ev_incr_value(SNMP_DB_FTPS_SESS_F_SESS_COUNT,
+      "ftps.tlsSessions.sessionCount", -1);
 
   } else {
-    const char *proto;
-
-    ev_incr_value(SNMP_DB_DAEMON_F_CONN_COUNT, "daemon.connectionCount", -1);
-
-    proto = pr_session_get_protocol(0);
-
-    if (strncmp(proto, "ftp", 4) == 0) {
-      ev_incr_value(SNMP_DB_FTP_SESS_F_SESS_COUNT,
-        "ftp.sessions.sessionCount", -1);
-
-      if (session.anon_config != NULL) {
-        ev_incr_value(SNMP_DB_FTP_LOGINS_F_ANON_COUNT,
-          "ftp.logins.anonLoginCount", -1);
-      }
-
-    } else if (strncmp(proto, "ftps", 5) == 0) {
-      ev_incr_value(SNMP_DB_FTPS_SESS_F_SESS_COUNT,
-        "ftps.tlsSessions.sessionCount", -1);
-
-    } else {
-      /* XXX ssh2/sftp/scp session end */
-    }
+    /* XXX ssh2/sftp/scp session end */
   }
 
   if (snmp_logfd >= 0) {
