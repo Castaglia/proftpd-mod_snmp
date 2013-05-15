@@ -3,7 +3,7 @@
   Then add the group reference to your host definitions
 -->
 
-<!-- ProFTPd MIB -->
+<!-- ProFTPD MIB -->
 
 <group name="proftpd" ifType="ignore">
    <mibObj oid=".1.3.6.1.4.1.17852.2.2.1.6" instance="0" alias="Cclients" type="Gauge32"/>
